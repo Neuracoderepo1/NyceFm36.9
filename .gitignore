@@ -2,4 +2,8 @@ node_modules/
 dist/
 .env
 *.log
-data/
+*.zip
+backend/storage/media/*
+backend/storage/streams/*
+!backend/storage/media/.gitkeep
+!backend/storage/streams/.gitkeep

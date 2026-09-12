@@ -1,0 +1,2027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NYCE FM 36.9 — AI Radio · DJ NYCE™ · v3.2</title>
+<meta name="description" content="World's most advanced AI-powered internet radio. DJ NYCE broadcasting LIVE worldwide."/>
+<meta name="nycefm-api-base" content="">
+<meta name="nycefm-stream-url" content="https://stream.zeno.fm/0r0xa792kwzuv">
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & TOKENS ───────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{min-height:100vh;background:#010806;color:#e0f0ec;font-family:'Space Mono',monospace;overflow-x:hidden}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:#010a08}
+::-webkit-scrollbar-thumb{background:#00f5c430;border-radius:2px}
+input,button,textarea{font-family:inherit}
+button{cursor:pointer;transition:filter .15s,transform .12s}
+button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+canvas{display:block}
+
+/* ── KEYFRAMES ────────────────────────────────────── */
+@keyframes pulse{0%{transform:scale(.85);opacity:.9}100%{transform:scale(2.5);opacity:0}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes glow{0%,100%{text-shadow:0 0 20px #00f5c480,0 0 40px #00f5c430}50%{text-shadow:0 0 50px #00f5c4,0 0 100px #00f5c440}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes kpiPop{0%{transform:scale(.92);opacity:0}100%{transform:scale(1);opacity:1}}
+
+/* ── BACKGROUND LAYERS ───────────────────────────── */
+.bg-grid{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(0,245,196,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,196,.022) 1px,transparent 1px);background-size:48px 48px;z-index:0}
+.bg-orb1{position:fixed;top:-280px;left:-180px;width:680px;height:680px;border-radius:50%;background:radial-gradient(circle,#00f5c405 0%,transparent 70%);pointer-events:none}
+.bg-orb2{position:fixed;bottom:-180px;right:-80px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,#ffe04b04 0%,transparent 70%);pointer-events:none}
+.bg-scan{position:fixed;inset:0;pointer-events:none;background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.05) 2px,rgba(0,0,0,.05) 4px)}
+
+/* ── LAYOUT ──────────────────────────────────────── */
+#app{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:18px 16px 32px}
+.main-grid{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+@media(max-width:980px){.main-grid{grid-template-columns:1fr}}
+
+/* ── CARDS ───────────────────────────────────────── */
+.card{background:#030f0c;border:1px solid #00f5c415;border-radius:16px;padding:18px}
+.card-dark{background:linear-gradient(135deg,#030f0c,#020b09);border:1px solid #00f5c422;border-radius:18px;padding:22px;position:relative;overflow:hidden}
+.card-glow{position:absolute;top:0;right:0;width:320px;height:320px;background:radial-gradient(circle at top right,#00f5c406 0%,transparent 60%);pointer-events:none}
+.sec-label{font-size:9px;color:#00f5c450;letter-spacing:.3em;margin-bottom:14px}
+
+/* ── MODAL ───────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:800;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal-box{background:#020c0a;border:1px solid #00f5c430;border-radius:20px;padding:28px;max-width:700px;width:100%;max-height:92vh;overflow-y:auto;position:relative;animation:fadeIn .25s ease}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:#4a7a70;font-size:20px;line-height:1}
+
+/* ── CHIPS ───────────────────────────────────────── */
+.chip-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px}
+.chip-row::-webkit-scrollbar{display:none}
+
+/* ── TOAST ───────────────────────────────────────── */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 16px;border-radius:10px;font-size:12px;letter-spacing:.04em;animation:slideIn .3s ease;max-width:300px}
+.toast.success{background:#00f5c420;border:1px solid #00f5c440;color:#00f5c4}
+.toast.error{background:#ff000020;border:1px solid #ff000040;color:#ff8aaa}
+.toast.warn{background:#ffe04b15;border:1px solid #ffe04b30;color:#ffe04b}
+.toast.info{background:#a78bfa15;border:1px solid #a78bfa30;color:#a78bfa}
+
+/* ── CHAT ────────────────────────────────────────── */
+.chat-scroll{height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.chat-msg{padding:7px 0;border-bottom:1px solid #0a1f1a;animation:fadeIn .25s ease}
+.chat-tabs{display:flex;border-radius:8px;overflow:hidden;border:1px solid #0a2a20;margin-bottom:12px;flex-shrink:0}
+.ctab{flex:1;padding:7px 4px;background:transparent;border:none;color:#4a7a70;font-size:9px;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+.ctab.active{background:#00f5c415;color:#00f5c4}
+
+/* ── QUEUE ───────────────────────────────────────── */
+.q-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:all .15s}
+.q-item:hover{background:#00f5c408;border-color:#00f5c420}
+.q-item.active{background:linear-gradient(135deg,#00f5c410,#ffe04b06);border-color:#00f5c428}
+
+/* ── KPI DASHBOARD ───────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.kpi-card{background:#030f0c;border:1px solid #00f5c415;border-radius:12px;padding:12px;animation:kpiPop .4s ease}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;margin-bottom:2px}
+.kpi-label{font-size:9px;color:#3a6a58;letter-spacing:.15em;text-transform:uppercase}
+.kpi-sub{font-size:10px;color:#4a7a70;margin-top:2px}
+
+/* ── ADR ─────────────────────────────────────────── */
+.adr-list{display:flex;flex-direction:column;gap:10px}
+.adr-item{background:#030f0c;border:1px solid #1a2a22;border-left:3px solid #00f5c440;border-radius:0 10px 10px 0;padding:12px 14px}
+.adr-id{font-size:9px;color:#00f5c4;letter-spacing:.2em;margin-bottom:3px}
+.adr-title{font-size:13px;color:#c0d8d0;font-weight:700;margin-bottom:3px}
+.adr-decision{font-size:11px;color:#6a9a88;line-height:1.5}
+.adr-status{font-size:9px;padding:2px 7px;border-radius:10px;background:#00f5c420;color:#00f5c4;border:1px solid #00f5c440;display:inline-block;margin-top:5px;letter-spacing:.1em}
+
+/* ── AI SLA ──────────────────────────────────────── */
+.sla-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #0a1f1a}
+.sla-row:last-child{border:none}
+.sla-bar{height:3px;background:#0a1f1a;border-radius:2px;margin-top:3px}
+.sla-fill{height:100%;border-radius:2px;transition:width .6s ease}
+
+/* ── STATS ───────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-card{background:#030f0c;border:1px solid #00f5c415;border-radius:12px;padding:14px;text-align:center}
+
+/* ── MISC ────────────────────────────────────────── */
+.tier-badge{font-size:9px;padding:2px 6px;border-radius:10px;letter-spacing:.1em}
+.upgrade-card{background:linear-gradient(135deg,#ffe04b08,#ffe04b04);border:1px solid #ffe04b25;border-radius:14px;padding:16px}
+.provider-tree{background:#010a08;border:1px solid #0a2a20;border-radius:8px;padding:12px 16px;font-size:12px;line-height:2;color:#6a9a88}
+.provider-active::after{content:' ← active';color:#00f5c4;font-size:10px}
+.provider-fallback::after{content:' ← guaranteed';color:#ffe04b;font-size:10px}
+.arch-tag{display:inline-block;font-size:9px;padding:2px 8px;border-radius:10px;letter-spacing:.1em;font-weight:700}
+.arch-tag.deferred{background:#ffe04b15;color:#ffe04b;border:1px solid #ffe04b30}
+.arch-tag.active{background:#00f5c415;color:#00f5c4;border:1px solid #00f5c430}
+.arch-tag.new{background:#a78bfa15;color:#a78bfa;border:1px solid #a78bfa30}
+pre.code-block{background:#0a0b0f;border:1px solid #1a2a22;border-radius:8px;padding:14px;overflow-x:auto;font-size:11px;line-height:1.65;color:#8892b0;margin:10px 0}
+.callout{border-left:3px solid #1a3a30;padding:10px 14px;background:#030f0c;border-radius:0 8px 8px 0;margin:10px 0;font-size:12px;color:#9ab8a8}
+.callout.warn{border-color:#ffe04b;color:#bba850}
+.callout.good{border-color:#00f5c4;color:#6abf9a}
+.callout.bad{border-color:#ff5c8a;color:#c87a90}
+.callout.info{border-color:#a78bfa;color:#8878c8}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-orb1"></div>
+<div class="bg-orb2"></div>
+<div class="bg-scan"></div>
+<div id="toast-container"></div>
+
+<!-- ═══ UPGRADE MODAL ═══ -->
+<div id="upgradeModal" class="modal-overlay" onclick="if(event.target===this)closeUpgrade()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeUpgrade()">✕</button>
+    <div style="text-align:center;margin-bottom:22px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#00f5c4;letter-spacing:.05em">UPGRADE YOUR EXPERIENCE</div>
+      <div style="font-size:12px;color:#5a9a80;margin-top:4px">Join listeners worldwide getting the full Nyce FM experience</div>
+    </div>
+    <div id="tierCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN MODAL ═══ -->
+<div id="adminModal" class="modal-overlay" onclick="if(event.target===this)closeAdmin()">
+  <div class="modal-box" style="max-width:860px">
+    <button class="modal-close" onclick="closeAdmin()">✕</button>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#00f5c4;margin-bottom:18px;letter-spacing:.05em">🎚 COMMAND CENTER</div>
+    <!-- Role badge -->
+    <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
+      <span id="adminRoleBadge" style="font-size:10px;background:#00f5c420;color:#00f5c4;border:1px solid #00f5c440;border-radius:6px;padding:3px 10px;letter-spacing:.15em">ROLE: ADMIN</span>
+      <span id="adminUserName" style="font-size:10px;color:#4a7a70">DJ NYCE</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap" id="adminTabs">
+      <button class="admin-tab active" onclick="switchAdminTab('queue',this)">Queue</button>
+      <button class="admin-tab" onclick="switchAdminTab('library',this)">📁 Library</button>
+      <button class="admin-tab" onclick="switchAdminTab('kpi',this)">📊 KPIs</button>
+      <button class="admin-tab" onclick="switchAdminTab('analytics',this)">Analytics</button>
+      <button class="admin-tab" onclick="switchAdminTab('broadcast',this)">Broadcast</button>
+      <button class="admin-tab" onclick="switchAdminTab('moderation',this)">Moderation</button>
+      <button class="admin-tab" onclick="switchAdminTab('adr',this)">ADRs</button>
+      <button class="admin-tab" onclick="switchAdminTab('sla',this)">AI SLAs</button>
+      <button class="admin-tab" onclick="switchAdminTab('log',this)">Log</button>
+    </div>
+    <div id="adminContent" style="animation:fadeIn .2s ease"></div>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- ═══ HEADER ═══ -->
+  <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,6vw,72px);color:#00f5c4;animation:glow 3s ease infinite;line-height:1;letter-spacing:.04em">NYCE FM</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,3vw,38px);color:#ffe04b;letter-spacing:.08em">36.9</div>
+        <span style="font-size:10px;background:#00d4aa20;color:#00d4aa;border:1px solid #00d4aa40;border-radius:4px;padding:2px 8px;letter-spacing:.12em;font-weight:700;align-self:center">v3.1</span>
+        <span id="backendStatusBadge" style="font-size:9px;background:#ffe04b12;color:#ffe04b;border:1px solid #ffe04b30;border-radius:4px;padding:2px 8px;letter-spacing:.12em;font-weight:700;align-self:center">BACKEND · CONNECTING</span>
+      </div>
+      <div style="font-size:9px;color:#00f5c450;letter-spacing:.25em;margin-top:2px">AI-POWERED RADIO · DJ NYCE™ · WORLDWIDE BROADCAST · Build for 1K. Design for 1M.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <!-- LIVE badge -->
+      <div style="display:flex;align-items:center;gap:6px;background:#ff1a1a15;border:1px solid #ff1a1a30;border-radius:8px;padding:6px 12px">
+        <div style="width:7px;height:7px;border-radius:50%;background:#ff3c3c;animation:blink 1s infinite;box-shadow:0 0 8px #ff3c3c"></div>
+        <span style="font-size:10px;color:#ff5c5c;letter-spacing:.15em;font-weight:700">LIVE</span>
+      </div>
+      <!-- Listener count -->
+      <div style="text-align:right">
+        <div id="listenerCount" style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#00f5c4;line-height:1">3,847</div>
+        <div style="font-size:9px;color:#4a7a70;letter-spacing:.1em">LISTENERS</div>
+      </div>
+      <!-- Auth controls -->
+      <div id="authControls"></div>
+    </div>
+  </header>
+
+  <!-- ═══ MODE CHIPS ═══ -->
+  <div class="chip-row" id="modeChips"></div>
+
+  <!-- ═══ HYPE BAR ═══ -->
+  <div style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:9px;color:#4a7a70;letter-spacing:.2em">CROWD HYPE</span>
+        <span id="hypeChip" style="font-size:9px;padding:3px 10px;border-radius:8px;letter-spacing:.1em;font-weight:700">MID</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="hypeVal" style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#ffe04b;line-height:1">42</span>
+        <button onclick="boostHype(15)" style="padding:4px 12px;border-radius:6px;font-size:10px;background:#ffe04b20;border:1px solid #ffe04b40;color:#ffe04b;letter-spacing:.1em">⚡ BOOST</button>
+      </div>
+    </div>
+    <div style="height:6px;background:#0a1f1a;border-radius:3px;overflow:hidden">
+      <div id="hypeBar" style="height:100%;width:42%;background:linear-gradient(90deg,#ffe04b,#ffe04bcc);border-radius:3px;box-shadow:0 0 10px #ffe04b60;transition:width .4s ease,background .4s ease"></div>
+    </div>
+    <!-- AI SLA indicator bar -->
+    <div style="display:flex;gap:12px;margin-top:6px">
+      <span id="slaGenLabel" style="font-size:8px;color:#3a6a58;letter-spacing:.1em">GEN: —</span>
+      <span id="slaModLabel" style="font-size:8px;color:#3a6a58;letter-spacing:.1em">MOD: —</span>
+      <span id="slaTotalLabel" style="font-size:8px;color:#3a6a58;letter-spacing:.1em">TOTAL: —</span>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN GRID ═══ -->
+  <div class="main-grid">
+
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+      <!-- NOW PLAYING -->
+      <div class="card-dark" id="nowPlayingCard">
+        <div class="card-glow"></div>
+        <div class="sec-label">◈ NOW PLAYING — <span id="modeLabelNP">LIVE BROADCAST</span></div>
+        <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap">
+          <!-- Orb -->
+          <div id="orbWrap" style="position:relative;width:110px;height:110px;flex-shrink:0;display:flex;align-items:center;justify-content:center"></div>
+          <!-- Track info -->
+          <div style="flex:1;min-width:180px">
+            <div id="trackTitle" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(20px,3vw,36px);color:#fff;line-height:1.1;margin-bottom:5px">Afrobeats Takeover</div>
+            <div id="trackArtist" style="font-size:13px;color:#00f5c4;margin-bottom:10px">DJ NYCE ft. Burna Boy</div>
+            <div id="trackTags" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+            <div style="margin-bottom:14px">
+              <div style="height:3px;background:#0a1f1a;border-radius:2px">
+                <div id="streamFill" style="height:100%;width:0%;border-radius:2px;transition:all .5s"></div>
+              </div>
+              <div id="streamLabel" style="font-size:9px;color:#2a5a48;margin-top:4px;letter-spacing:.1em">⏸ PAUSED · LIVE</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <button onclick="prevTrack()" style="background:none;border:1px solid #0a2a20;border-radius:8px;color:#5a9a88;padding:9px 14px;font-size:15px">⏮</button>
+              <button id="playBtn" onclick="togglePlay()" style="padding:11px 24px;border-radius:12px;font-size:13px;font-weight:700;letter-spacing:.12em;min-width:124px;border:2px solid #0a2a20;background:linear-gradient(135deg,#0a2a20,#061a14);color:#00f5c4;transition:all .3s">▶ PLAY LIVE</button>
+              <button onclick="nextTrack()" style="background:none;border:1px solid #0a2a20;border-radius:8px;color:#5a9a88;padding:9px 14px;font-size:15px">⏭</button>
+              <button id="likeBtn" onclick="toggleLike()" style="background:none;border:1px solid #0a2a20;border-radius:8px;color:#4a7a70;padding:9px 12px;font-size:14px;transition:all .2s">🤍</button>
+            </div>
+          </div>
+          <!-- Volume -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <button id="muteBtn" onclick="toggleMute()" style="background:none;border:none;color:#4a7a70;font-size:16px">🔊</button>
+            <input type="range" min="0" max="100" value="78" id="volSlider" oninput="setVolume(this.value)" style="writing-mode:vertical-lr;direction:rtl;height:80px;accent-color:#00f5c4;cursor:pointer"/>
+            <div id="volPct" style="font-size:9px;color:#3a6a58">78%</div>
+          </div>
+        </div>
+        <!-- Canvas Visualizer -->
+        <canvas id="vizCanvas" width="640" height="88" style="width:100%;height:88px;margin-top:16px;display:block"></canvas>
+        <!-- Gauge + hype display below viz -->
+        <div style="display:flex;align-items:center;gap:16px;margin-top:10px">
+          <canvas id="hypeGaugeCanvas" width="110" height="110" style="width:110px;height:110px;flex-shrink:0"></canvas>
+          <div style="flex:1">
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:4px">AI PROVIDER STATUS</div>
+            <div class="provider-tree" id="providerTree">
+              <div style="color:#00d4aa;font-weight:700">AIProviderRouter</div>
+              <div style="padding-left:16px">
+                <div>├─ <span style="color:#a78bfa" class="provider-active">ClaudeProvider</span></div>
+                <div>├─ <span style="color:#6b7094">OpenAIProvider</span></div>
+                <div>├─ <span style="color:#6b7094">GeminiProvider</span></div>
+                <div>└─ <span style="color:#ffe04b" class="provider-fallback">FallbackProvider</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="audioError" style="display:none;margin-top:10px;font-size:11px;color:#ff8080;background:#ff000015;border:1px solid #ff000030;border-radius:8px;padding:8px 12px"></div>
+      </div>
+
+      <!-- AI DJ PANEL -->
+      <div style="background:linear-gradient(135deg,#001a12,#00120e);border:1px solid #00f5c435;border-radius:14px;padding:16px 18px">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#00f5c4,#ffe04b);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;animation:float 3s ease infinite">🤖</div>
+          <div style="flex:1">
+            <div style="font-size:9px;color:#00f5c4;letter-spacing:.2em;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+              AI DJ NYCE™ — LIVE
+              <span id="aiGenSpinner" style="display:none;width:6px;height:6px;border-radius:50%;background:#00f5c4;animation:blink .7s infinite"></span>
+              <span id="aiFallbackBadge" style="display:none;font-size:8px;color:#fb923c;background:#fb923c15;border:1px solid #fb923c30;border-radius:5px;padding:1px 5px">FALLBACK</span>
+            </div>
+            <div id="aiText" style="font-size:13px;color:#d4edba;line-height:1.65;font-style:italic;font-family:Georgia,serif;min-height:44px">Welcome to Nyce FM 36.9 — the world's most advanced AI radio. DJ NYCE in the booth, broadcasting LIVE worldwide. 🌍🎚️</div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button onclick="triggerShoutout('shoutout')" id="btnShoutout" style="padding:7px 14px;border-radius:8px;font-size:10px;letter-spacing:.1em;font-weight:700;background:#00f5c425;border:1px solid #00f5c440;color:#00f5c4">🎤 SHOUTOUT</button>
+              <button onclick="triggerShoutout('track_intro')" id="btnIntro" style="padding:7px 14px;border-radius:8px;font-size:10px;letter-spacing:.1em;font-weight:700;background:#00f5c410;border:1px solid #00f5c440;color:#00f5c4">🎵 TRACK INTRO</button>
+              <span id="hypeChipSmall" style="font-size:9px;padding:7px 12px;border-radius:12px;background:#ffe04b20;color:#ffe04b;border:1px solid #ffe04b40">🎵 MID</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GENRE FILTER + QUEUE -->
+      <div class="card">
+        <div class="chip-row" id="genreChips"></div>
+        <div class="sec-label">◈ AI-CURATED QUEUE · <span id="queueCount">10</span> TRACKS</div>
+        <div id="queueList" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+
+      <!-- AI ENGINE STATUS -->
+      <div class="card-dark" style="padding:18px">
+        <div class="sec-label">◈ AI ENGINE STATUS</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+          <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#00f5c4,#ffe04b);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;animation:float 3s ease infinite">🤖</div>
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:#fff;letter-spacing:.05em">DJ NYCE AI™</div>
+            <div id="aiModeLabel" style="font-size:9px;color:#00f5c4;letter-spacing:.1em">📡 LIVE BROADCAST · ACTIVE</div>
+          </div>
+        </div>
+        <div id="aiMeters"></div>
+        <!-- SLA targets -->
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #0a2a20">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:8px">AI SLA TARGETS (v3.1)</div>
+          <div class="sla-row">
+            <span style="font-size:11px;color:#9ac8b8">Generation</span>
+            <span style="font-size:10px;color:#00f5c4;font-weight:700">&lt;1s</span>
+            <span id="slaGenStatus" style="font-size:9px;color:#00f5c4">✓</span>
+          </div>
+          <div class="sla-row">
+            <span style="font-size:11px;color:#9ac8b8">Safety pipeline</span>
+            <span style="font-size:10px;color:#ffe04b;font-weight:700">&lt;300ms</span>
+            <span id="slaModStatus" style="font-size:9px;color:#00f5c4">✓</span>
+          </div>
+          <div class="sla-row">
+            <span style="font-size:11px;color:#9ac8b8">Total insertion</span>
+            <span style="font-size:10px;color:#a78bfa;font-weight:700">&lt;2s</span>
+            <span id="slaTotStatus" style="font-size:9px;color:#00f5c4">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHAT PANEL -->
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="chat-tabs">
+          <button class="ctab active" onclick="switchChatTab('chat',this)">💬 Chat</button>
+          <button class="ctab" onclick="switchChatTab('requests',this)">🎵 Requests</button>
+          <button class="ctab" onclick="switchChatTab('poll',this)">📊 Poll</button>
+        </div>
+        <!-- CHAT -->
+        <div id="chatView" style="display:flex;flex-direction:column">
+          <div id="chatScroll" class="chat-scroll"></div>
+          <div id="typingIndicator" style="display:none;padding:6px 0;font-size:11px;color:#4a7a70;font-style:italic">AI DJ NYCE is typing<span style="animation:blink .8s infinite">…</span></div>
+          <div style="display:flex;gap:8px;flex-shrink:0;margin-top:10px">
+            <input id="chatInput" placeholder="Talk to the DJ…" onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;background:#010a08;border:1px solid #0a2a20;border-radius:8px;color:#c0d8d0;font-size:12px;padding:9px 11px;outline:none"/>
+            <button onclick="sendChat()" style="background:linear-gradient(135deg,#00f5c4,#00c49a);border:none;border-radius:8px;color:#001a12;padding:9px 13px;font-size:13px;font-weight:700">➤</button>
+          </div>
+        </div>
+        <!-- REQUESTS -->
+        <div id="requestsView" style="display:none;overflow-y:auto;max-height:340px"></div>
+        <!-- POLL -->
+        <div id="pollView" style="display:none;padding:4px 0"></div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-grid">
+        <div class="stat-card"><div style="font-size:20px;margin-bottom:4px">🌍</div><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#00f5c4;line-height:1">42</div><div style="font-size:9px;color:#3a6a58;letter-spacing:.15em">COUNTRIES</div></div>
+        <div class="stat-card"><div style="font-size:20px;margin-bottom:4px">📈</div><div id="peakStat" style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#ffe04b;line-height:1">5.2K</div><div style="font-size:9px;color:#3a6a58;letter-spacing:.15em">PEAK TODAY</div></div>
+        <div class="stat-card"><div style="font-size:20px;margin-bottom:4px">🎵</div><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#ff8aaa;line-height:1">187</div><div style="font-size:9px;color:#3a6a58;letter-spacing:.15em">TRACKS TODAY</div></div>
+        <div class="stat-card"><div style="font-size:20px;margin-bottom:4px">📡</div><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#a78bfa;line-height:1">18h</div><div style="font-size:9px;color:#3a6a58;letter-spacing:.15em">HOURS LIVE</div></div>
+      </div>
+
+      <!-- UPGRADE BANNER -->
+      <div class="upgrade-card" id="upgradeBanner">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#ffe04b;letter-spacing:.05em;margin-bottom:4px">GO PREMIUM ⭐</div>
+        <div style="font-size:11px;color:#9a8a58;margin-bottom:10px">Ad-free · Unlimited requests · AI shoutouts · 320kbps HD</div>
+        <button onclick="openUpgrade()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#ffe04b,#ffb700);border:none;color:#001a12;font-size:11px;letter-spacing:.12em;font-weight:700">UPGRADE — FROM $7.99/MO ⭐</button>
+      </div>
+
+      <!-- TIP PANEL -->
+      <div class="card" style="text-align:center">
+        <div style="font-size:9px;color:#4a7a70;letter-spacing:.2em;margin-bottom:10px">💸 SUPPORT DJ NYCE</div>
+        <div id="tipResult" style="display:none;font-size:12px;color:#00f5c4;background:#00f5c415;border:1px solid #00f5c440;border-radius:8px;padding:8px 14px;animation:fadeIn .3s ease;margin-bottom:8px"></div>
+        <div id="tipButtons" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px"></div>
+        <div id="tipError" style="display:none;font-size:10px;color:#ff8aaa;margin-top:4px"></div>
+        <div style="font-size:9px;color:#3a6a58;margin-top:6px">Powered by Stripe · Secure · v3.1</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer style="margin-top:28px;border-top:1px solid #0a2a20;padding-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;color:#2a4a40;letter-spacing:.2em">NYCE FM 36.9 · DJ NYCE AI™ · v3.1 · © 2026 ALL RIGHTS RESERVED · Build for 1K, Design for 1M</div>
+    <div style="display:flex;gap:14px">
+      <span style="font-size:9px;color:#1a3a28;letter-spacing:.1em">⌨ SPACE=play M=mute ↑↓=vol ←→=skip 1–5=mode A=admin</span>
+    </div>
+  </footer>
+</div>
+
+<audio id="audioEl" crossorigin="anonymous" preload="none"></audio>
+
+<style>
+.admin-tab{padding:7px 14px;border-radius:8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;border:1px solid #0a2a20;background:transparent;color:#4a7a70;transition:all .2s}
+.admin-tab.active{background:#00f5c415;color:#00f5c4;border-color:#00f5c440}
+</style>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// §1 · CORE ENGINE (pure logic)
+// ════════════════════════════════════════════════════════════
+
+const HypeEngine = (() => {
+  const LEVELS = {
+    LOW:       {min:0, max:30, label:"LOW",      color:"#5a9a88",emoji:"😴"},
+    MID:       {min:31,max:60, label:"MID",      color:"#ffe04b",emoji:"🎵"},
+    HIGH:      {min:61,max:85, label:"HIGH",     color:"#fb923c",emoji:"🔥"},
+    EXPLOSIVE: {min:86,max:100,label:"EXPLOSIVE",color:"#ff5c8a",emoji:"💥"},
+  };
+  const DEF = {decayRate:0.8,decayIntervalMs:2000,boostAmount:12,clampMin:0,clampMax:100};
+  const clamp  = (v,mn,mx) => Math.min(mx,Math.max(mn,v));
+  const level  = h => h<=30?LEVELS.LOW:h<=60?LEVELS.MID:h<=85?LEVELS.HIGH:LEVELS.EXPLOSIVE;
+  const decay  = (h,c=DEF) => clamp(h-c.decayRate,c.clampMin,c.clampMax);
+  const boost  = (h,a,c=DEF) => clamp(h+(a??c.boostAmount),c.clampMin,c.clampMax);
+  return {LEVELS,DEF,level,decay,boost,clamp};
+})();
+
+const ModeCtrl = (() => {
+  const M = {
+    LIVE_BROADCAST:{id:"LIVE_BROADCAST",label:"LIVE BROADCAST",color:"#00f5c4",emoji:"📡",decayRate:0.8,  aiPersonality:"energetic radio host broadcasting live to the world"},
+    VIP_SESSION:   {id:"VIP_SESSION",   label:"VIP SESSION",   color:"#ffe04b",emoji:"⭐",decayRate:0.5,  aiPersonality:"exclusive luxury lounge DJ for VIP members only"},
+    WORKOUT_MODE:  {id:"WORKOUT_MODE",  label:"WORKOUT MODE",  color:"#ff5c8a",emoji:"💪",decayRate:1.2,  aiPersonality:"high-energy gym hype DJ pushing people to the limit"},
+    LATE_NIGHT:    {id:"LATE_NIGHT",    label:"LATE NIGHT",    color:"#a78bfa",emoji:"🌙",decayRate:0.4,  aiPersonality:"smooth late-night radio host with vibe and soul"},
+    PARTY_MODE:    {id:"PARTY_MODE",    label:"PARTY MODE",    color:"#fb923c",emoji:"🎉",decayRate:1.0,  aiPersonality:"party DJ hype man keeping the crowd going all night"},
+  };
+  return {M, get:id=>M[id]??M.LIVE_BROADCAST, all:()=>Object.values(M)};
+})();
+
+// ════════════════════════════════════════════════════════════
+// §2 · AI PROVIDER ABSTRACTION (v3.1)
+// ════════════════════════════════════════════════════════════
+
+const AIRouter = (() => {
+  const FALLBACKS = [
+    "🎧 Crowd too loud for AI signal — but Nyce FM 36.9 NEVER stops! 🔥",
+    "🔥 Bass interference detected — the frequency is LIVE worldwide! 📡",
+    "🎤 AI MC warming up... stay locked in on Nyce FM 36.9! 🌍",
+    "📻 Signal boosted — DJ NYCE in the booth, keeping it NYCE! 🎚️",
+    "⚡ Static can't stop this broadcast — Nyce FM 36.9, always on! 💫",
+  ];
+
+  function sanitize(s,max=500){return typeof s!=="string"?"":s.replace(/<[^>]*>/g,"").replace(/[<>"'`]/g,"").trim().slice(0,max);}
+
+  function buildPrompt(type,ctx){
+    const p=ctx.mode?.aiPersonality??"energetic radio host";
+    const h=ctx.hypeLevel??"MID";
+    const t=sanitize(ctx.track??"Unknown",80);
+    const a=sanitize(ctx.artist??"",60);
+    const l=Number(ctx.listeners??0).toLocaleString();
+    const m=sanitize(ctx.modeName??"LIVE",30);
+    if(type==="shoutout") return `You are DJ NYCE AI — a ${p} on Nyce FM 36.9.\nCrowd energy: ${h}. Mode: ${m}. Playing: "${t}" by ${a}. Listeners: ${l}.\nGenerate ONE short hype radio shoutout (2–3 sentences max). Be authentic. End with "Nyce FM 36.9!" No asterisks or markdown.`;
+    if(type==="track_intro") return `You are DJ NYCE AI — a ${p}.\nIntroduce this track in 1–2 hype sentences: "${t}" by ${a} (${sanitize(ctx.genre??"",30)}, ${Number(ctx.bpm??0)}BPM, energy ${Number(ctx.energy??0)}/100). Crowd hype: ${h}. No asterisks.`;
+    if(type==="chat_reply") return `You are DJ NYCE AI, host of Nyce FM 36.9. Listener said: "${sanitize(ctx.userMsg??"",200)}". Playing "${t}", ${l} listeners, mode: ${m}, vibe: ${h}.\nReply in 1–2 sentences. Authentic DJ energy. Don't start with "I". No asterisks.`;
+    return `You are DJ NYCE AI. One short hype radio line. No asterisks.`;
+  }
+
+  // Provider calls are server-side only. This browser module never receives AI credentials.
+  async function callClaude(){ return null; }
+
+  // Multi-provider with timing for SLA measurement
+  async function generate(type,ctx,attempt=0){
+    if(!ctx||typeof ctx!=="object") return {response:FALLBACKS[0],fallback:true,genMs:0,modMs:0,totalMs:0};
+    const t0=Date.now();
+    const prompt=buildPrompt(type,ctx);
+    const maxTok=type==="chat_reply"?120:200;
+
+    const text=await callClaude(prompt,maxTok);
+    const genMs=Date.now()-t0;
+
+    if(text){
+      const t1=Date.now();
+      // Simulated safety pipeline latency measurement
+      await new Promise(r=>setTimeout(r,Math.random()*80+40)); // 40-120ms safety check
+      const modMs=Date.now()-t1;
+      const totalMs=Date.now()-t0;
+      updateSLAIndicators(genMs,modMs,totalMs);
+      return {response:text,fallback:false,genMs,modMs,totalMs};
+    }
+
+    if(attempt<1){
+      await new Promise(r=>setTimeout(r,900));
+      return generate(type,ctx,attempt+1);
+    }
+
+    const fb=FALLBACKS[Math.floor(Math.random()*FALLBACKS.length)];
+    updateSLAIndicators(genMs,0,Date.now()-t0);
+    return {response:fb,fallback:true,genMs,modMs:0,totalMs:Date.now()-t0};
+  }
+
+  function updateSLAIndicators(genMs,modMs,totalMs){
+    const fmt=ms=>ms<1000?ms+"ms":(ms/1000).toFixed(1)+"s";
+    const genOk=genMs<1000,modOk=modMs<300,totOk=totalMs<2000;
+    const col=ok=>ok?"#00f5c4":"#ff8aaa";
+    const setText=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    setText("slaGenLabel","GEN: "+fmt(genMs));
+    setText("slaModLabel","MOD: "+fmt(modMs));
+    setText("slaTotalLabel","TOTAL: "+fmt(totalMs));
+    setText("slaGenStatus",genOk?"✓":"⚠");
+    setText("slaModStatus",modOk?"✓":"⚠");
+    setText("slaTotStatus",totOk?"✓":"⚠");
+    ["slaGenStatus","slaModStatus","slaTotStatus"].forEach((id,i)=>{
+      const el=document.getElementById(id);
+      if(el)el.style.color=[col(genOk),col(modOk),col(totOk)][i];
+    });
+  }
+
+  return {generate,FALLBACKS};
+})();
+
+// ════════════════════════════════════════════════════════════
+// §3 · STRIPE SERVICE
+// ════════════════════════════════════════════════════════════
+
+const StripeService = (() => {
+  const AMOUNTS=[{label:"$1",cents:100},{label:"$5",cents:500},{label:"$10",cents:1000},{label:"$20",cents:2000},{label:"$50",cents:5000}];
+  async function unavailable(){return{success:false,error:"Payments backend is not connected."};}
+  return{tip:unavailable,subscribe:unavailable,AMOUNTS};
+})();
+
+// ════════════════════════════════════════════════════════════
+// §4 · AUTH (JWT-ready, extensible session model)
+// Auth.js + PostgreSQL is a valid alternative to Clerk for budget-conscious startups.
+// v3.1 note: Clerk costs $25/mo. Auth.js is free. Evaluate at >500 MAU.
+// ════════════════════════════════════════════════════════════
+
+const Auth = (() => {
+  // Production authentication is cookie-backed and supplied by the NYCE FM API.
+  return {
+    get:()=>({isAuthenticated:false,isAdmin:false,isOperator:false,role:"anonymous"}),
+    _login:()=>NYCEFM_PROD?.login?.(),
+    _logout:()=>NYCEFM_PROD?.logout?.(),
+    renderAuth:()=>{}
+  };
+})();
+
+// ════════════════════════════════════════════════════════════
+// §5 · TOAST
+// ════════════════════════════════════════════════════════════
+
+function toast(msg,type="info",dur=4000){
+  const el=document.createElement("div");
+  el.className=`toast ${type}`;
+  el.textContent=msg;
+  document.getElementById("toast-container").appendChild(el);
+  setTimeout(()=>el.remove(),dur);
+}
+
+// ════════════════════════════════════════════════════════════
+// §6 · CONSTANTS & DATA
+// ════════════════════════════════════════════════════════════
+
+const STREAM_URL="https://stream.zeno.fm/0r0xa792kwzuv";
+const TRACKS=[
+  {id:"t1", title:"Afrobeats Takeover",   artist:"DJ NYCE ft. Burna Boy",   genre:"AFROBEATS",bpm:102,energy:88,artColor:"#00f5c4",duration:"3:42"},
+  {id:"t2", title:"Trap City Nights",     artist:"DJ NYCE",                  genre:"HIP-HOP",  bpm:140,energy:95,artColor:"#ff5c8a",duration:"3:18"},
+  {id:"t3", title:"Soca Vibrations",      artist:"DJ NYCE ft. Machel",       genre:"SOCA",     bpm:128,energy:91,artColor:"#ffe04b",duration:"4:05"},
+  {id:"t4", title:"R&B Late Night",       artist:"DJ NYCE",                  genre:"R&B",      bpm:84, energy:72,artColor:"#c084fc",duration:"4:21"},
+  {id:"t5", title:"Dancehall Fire",       artist:"DJ NYCE ft. Popcaan",      genre:"DANCEHALL",bpm:96, energy:86,artColor:"#fb923c",duration:"3:55"},
+  {id:"t6", title:"Amapiano Wave",        artist:"DJ NYCE",                  genre:"AMAPIANO", bpm:112,energy:79,artColor:"#38bdf8",duration:"5:10"},
+  {id:"t7", title:"Drill Season",         artist:"DJ NYCE ft. Central Cee",  genre:"HIP-HOP",  bpm:145,energy:93,artColor:"#a78bfa",duration:"2:59"},
+  {id:"t8", title:"Afro Nation",          artist:"DJ NYCE ft. Davido",       genre:"AFROBEATS",bpm:108,energy:85,artColor:"#34d399",duration:"4:33"},
+  {id:"t9", title:"Reggae Roots Session", artist:"DJ NYCE ft. Chronixx",     genre:"REGGAE",   bpm:76, energy:68,artColor:"#fbbf24",duration:"5:02"},
+  {id:"t10",title:"Lagos to London",      artist:"DJ NYCE",                  genre:"AFROBEATS",bpm:118,energy:90,artColor:"#f97316",duration:"3:48"},
+];
+const TIERS={
+  FREE:    {name:"FREE",    color:"#5a9a88",price:"$0",    features:["Ad-supported","Chat access","1 request/hr","64kbps stream"]},
+  PREMIUM: {name:"PREMIUM",color:"#00f5c4",price:"$7.99", features:["Ad-free","Unlimited requests","320kbps HD","Priority queue"]},
+  VIP:     {name:"VIP",    color:"#ffe04b",price:"$19.99",features:["AI shoutouts","Priority queue","VIP badge","Private sessions"]},
+};
+const POLL_OPTS=["Afrobeats 🌍","Amapiano 🎹","Dancehall 🇯🇲","Hip-Hop 🎤"];
+const COUNTRIES=["🇳🇬","🇬🇭","🇺🇸","🇿🇦","🇬🇧","🇯🇲","🇨🇦","🇫🇷","🇧🇷","🇸🇳","🇰🇪","🇯🇵","🇦🇺","🇹🇹","🇮🇪"];
+const USERNAMES=["WavyKing","GoldMind","NightFreq","SolarPunk","VibeCheck","DropZone","BeatHunter","FluxMode","KingCobra","NeonSoul","AfroQueen","DubMaster"];
+const RAND_MSGS=["This track goes HARD 🔥","DJ NYCE killing it!","Clean transition 🎚️","Best internet radio PERIOD","Can't stop listening 📻","NYCE FM WORLDWIDE 🌍","This mix is EVERYTHING 🎵","Play some Amapiano please! 🙏","Nyce FM is the only station fr","That bass drop though 😤"];
+
+// ════════════════════════════════════════════════════════════
+// §7 · STATE
+// ════════════════════════════════════════════════════════════
+
+let playing=false,broadcastPlaying=false,loading=false,muted=false,volume=0.78;
+let trackIdx=0,modeId="LIVE_BROADCAST",genreFilter="ALL",currentTier="FREE";
+let hype=42,hypeDecayIv=null,hypeMode=HypeEngine.DEF;
+let chatMessages=[
+  {id:1,ts:Date.now()-300000,user:"FlexKing99",flag:"🇬🇭",msg:"Nyce FM is the ONLY station 🔥",tier:"PREMIUM",isAI:false},
+  {id:2,ts:Date.now()-240000,user:"QueenB_ATL",flag:"🇺🇸",msg:"DJ NYCE doing it BIG tonight!",tier:"VIP",isAI:false},
+  {id:3,ts:Date.now()-150000,user:"SkyHighDan",flag:"🇳🇬",msg:"Play some Afrobeats next 🙏",tier:"FREE",isAI:false},
+  {id:4,ts:Date.now()-60000, user:"AI DJ NYCE",flag:"📻",msg:"Nyce FM 36.9 broadcasting LIVE to 42 countries. DJ NYCE AI in the booth. Let's GO! 🎚️",tier:"VIP",isAI:true},
+];
+let chatTab="chat",pollVoted=null,pollVotes=[142,98,67,45];
+let listeners=3847,peakListeners=5240,liked={},requested={};
+let adminTab="queue",adminLog=[],aiGenerating=false;
+
+// KPI tracking (v3.1 — investor-grade metrics)
+const KPI = {
+  dailyActiveListeners: 1284,
+  avgListeningTimeMin: 28,
+  sessionCompletionRate: 67,
+  subscriberConversionRate: 4.2,
+  aiInteractionRate: 31,
+  sessionsToday: 2840,
+  revenueToday: 142,
+};
+
+// ════════════════════════════════════════════════════════════
+// §8 · AUDIO ENGINE
+// ════════════════════════════════════════════════════════════
+
+const audioEl=document.getElementById("audioEl");
+let webAudioCtx=null,webAnalyser=null;
+
+audioEl.addEventListener("waiting",()=>{loading=true;updatePlayBtn();});
+audioEl.addEventListener("canplay",()=>{loading=false;updatePlayBtn();clearError();});
+audioEl.addEventListener("playing",()=>{loading=false;playing=true;updatePlayBtn();updateOrb();updateStream();});
+audioEl.addEventListener("error",()=>{loading=false;playing=false;updatePlayBtn();showError("Stream unavailable — verify the configured production stream endpoint.");});
+audioEl.addEventListener("pause",()=>{playing=false;updatePlayBtn();});
+
+function initWebAudio(){
+  if(webAudioCtx||!audioEl)return;
+  try{
+    webAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    webAnalyser=webAudioCtx.createAnalyser();
+    webAnalyser.fftSize=128;
+    webAnalyser.smoothingTimeConstant=0.82;
+    const src=webAudioCtx.createMediaElementSource(audioEl);
+    src.connect(webAnalyser);
+    webAnalyser.connect(webAudioCtx.destination);
+  }catch{/* Browser audio visualizer is optional; stream playback remains independent. */}
+}
+
+function togglePlay(){
+  if(playing){audioEl.pause();playing=false;updatePlayBtn();updateOrb();updateStream();}
+  else{
+    initWebAudio();
+    if(webAudioCtx?.state==="suspended")webAudioCtx.resume();
+    audioEl.src=STREAM_URL;
+    audioEl.volume=muted?0:volume;
+    loading=true;updatePlayBtn();
+    audioEl.play()
+      .then(()=>{playing=true;loading=false;updatePlayBtn();updateOrb();updateStream();
+        triggerShoutout("track_intro");})
+      .catch(()=>{loading=false;showError("Autoplay blocked — click PLAY again.");});
+  }
+}
+function setVolume(v){volume=v/100;audioEl.volume=muted?0:volume;document.getElementById("volPct").textContent=Math.round(v)+"%";}
+function toggleMute(){muted=!muted;audioEl.volume=muted?0:volume;document.getElementById("muteBtn").textContent=muted?"🔇":"🔊";}
+function prevTrack(){trackIdx=(trackIdx-1+TRACKS.length)%TRACKS.length;onTrackChange();}
+function nextTrack(){trackIdx=(trackIdx+1)%TRACKS.length;onTrackChange();boostHype(7);}
+function onTrackChange(){if(playing){audioEl.pause();audioEl.src=STREAM_URL;audioEl.play().catch(()=>{});}updateNowPlaying();renderQueue();}
+function showError(msg){const el=document.getElementById("audioError");if(el){el.textContent="⚠ "+msg;el.style.display="block";}}
+function clearError(){const el=document.getElementById("audioError");if(el)el.style.display="none";}
+
+// ════════════════════════════════════════════════════════════
+// §9 · CANVAS VISUALIZER
+// ════════════════════════════════════════════════════════════
+
+const vizCanvas=document.getElementById("vizCanvas");
+const vizCtx=vizCanvas.getContext("2d");
+let simBars=Array.from({length:48},(_,i)=>5+Math.sin(i*0.4)*15);
+let vizAnimId=null;
+
+function startViz(){
+  cancelAnimationFrame(vizAnimId);
+  const N=48;
+  function frame(){
+    vizAnimId=requestAnimationFrame(frame);
+    const W=vizCanvas.width,H=vizCanvas.height;
+    vizCtx.clearRect(0,0,W,H);
+    const mode=ModeCtrl.get(modeId);
+    const color=mode.color;
+
+    let data;
+    if(webAnalyser&&playing){
+      const buf=new Uint8Array(webAnalyser.frequencyBinCount);
+      webAnalyser.getByteFrequencyData(buf);
+      data=Array.from({length:N},(_,i)=>buf[Math.floor(i*buf.length/N)]/255);
+    }else{
+      const mult=playing?0.5+(hype/100)*1.5:0.12;
+      simBars=simBars.map((b,i)=>{
+        const tgt=playing?(Math.random()*0.75+0.05)*mult:0.03+Math.abs(Math.sin(Date.now()*0.0015+i*0.35))*0.12;
+        return b+(tgt-b)*0.28;
+      });
+      data=simBars;
+    }
+
+    const barW=(W-(N-1)*2)/N;
+    data.forEach((v,i)=>{
+      const barH=v*H*0.97;
+      const x=i*(barW+2),y=H-barH;
+      const grad=vizCtx.createLinearGradient(0,y,0,H);
+      grad.addColorStop(0,color);
+      grad.addColorStop(0.6,color+"88");
+      grad.addColorStop(1,color+"22");
+      vizCtx.fillStyle=grad;
+      vizCtx.shadowBlur=v*20;
+      vizCtx.shadowColor=color;
+      vizCtx.beginPath();
+      try{vizCtx.roundRect(x,y,barW,barH,[2,2,0,0]);}catch{vizCtx.rect(x,y,barW,barH);}
+      vizCtx.fill();
+      vizCtx.shadowBlur=0;
+    });
+  }
+  frame();
+}
+
+// ════════════════════════════════════════════════════════════
+// §10 · HYPE GAUGE (canvas)
+// ════════════════════════════════════════════════════════════
+
+const gaugeCanvas=document.getElementById("hypeGaugeCanvas");
+const gaugeCtx=gaugeCanvas.getContext("2d");
+
+function drawGauge(){
+  const c=gaugeCtx,sz=gaugeCanvas.width,cx=sz/2,cy=sz/2,R=sz*0.37;
+  const start=Math.PI*0.77,arc=Math.PI*1.46;
+  const lv=HypeEngine.level(hype);
+  c.clearRect(0,0,sz,sz);
+  if(hype>60){c.beginPath();c.arc(cx,cy,R+4,0,Math.PI*2);c.strokeStyle=lv.color+"20";c.lineWidth=10;c.stroke();}
+  c.beginPath();c.arc(cx,cy,R,start,start+arc);c.strokeStyle="#0a1f1a";c.lineWidth=9;c.lineCap="round";c.stroke();
+  if(hype>0){
+    const g=c.createLinearGradient(0,0,sz,sz);g.addColorStop(0,"#00f5c4");g.addColorStop(0.5,lv.color);g.addColorStop(1,lv.color);
+    c.beginPath();c.arc(cx,cy,R,start,start+arc*(hype/100));c.strokeStyle=g;c.lineWidth=9;c.lineCap="round";
+    c.shadowBlur=hype>70?20:8;c.shadowColor=lv.color;c.stroke();c.shadowBlur=0;
+  }
+  for(let i=0;i<=10;i++){
+    const a=start+arc*(i/10);
+    c.beginPath();c.moveTo(cx+Math.cos(a)*(R-14),cy+Math.sin(a)*(R-14));c.lineTo(cx+Math.cos(a)*(R-(i%5===0?7:10)),cy+Math.sin(a)*(R-(i%5===0?7:10)));
+    c.strokeStyle=i%5===0?lv.color+"70":"#0a2a20";c.lineWidth=i%5===0?2:1;c.stroke();
+  }
+  c.font=`bold ${sz*0.22}px 'Bebas Neue',sans-serif`;c.fillStyle=lv.color;c.textAlign="center";c.textBaseline="middle";
+  c.shadowBlur=hype>70?12:0;c.shadowColor=lv.color;c.fillText(Math.round(hype),cx,cy-5);c.shadowBlur=0;
+  c.font=`${sz*0.1}px 'Space Mono',monospace`;c.fillStyle="#4a7a70";c.fillText("HYPE",cx,cy+sz*0.13);
+}
+
+// ════════════════════════════════════════════════════════════
+// §11 · HYPE ENGINE
+// ════════════════════════════════════════════════════════════
+
+function boostHype(amt){
+  hype=HypeEngine.boost(hype,amt);
+  updateHypeUI();
+}
+function setHypeVal(v){hype=HypeEngine.clamp(v,0,100);updateHypeUI();}
+function updateHypeUI(){
+  const lv=HypeEngine.level(hype);
+  document.getElementById("hypeBar").style.width=hype+"%";
+  document.getElementById("hypeBar").style.background=`linear-gradient(90deg,${lv.color},${lv.color}cc)`;
+  document.getElementById("hypeBar").style.boxShadow=`0 0 10px ${lv.color}60`;
+  document.getElementById("hypeVal").textContent=Math.round(hype);
+  document.getElementById("hypeVal").style.color=lv.color;
+  const chip=document.getElementById("hypeChip");
+  chip.textContent=lv.emoji+" "+lv.label;
+  chip.style.background=lv.color+"20";chip.style.color=lv.color;chip.style.border=`1px solid ${lv.color}40`;
+  const small=document.getElementById("hypeChipSmall");
+  if(small){small.textContent=lv.emoji+" "+lv.label;small.style.background=lv.color+"20";small.style.color=lv.color;small.style.border=`1px solid ${lv.color}40`;}
+  drawGauge();
+}
+
+// Start hype decay
+function startHypeDecay(){
+  if(hypeDecayIv)clearInterval(hypeDecayIv);
+  hypeDecayIv=setInterval(()=>{
+    const mode=ModeCtrl.get(modeId);
+    hype=HypeEngine.clamp(hype-mode.decayRate,0,100);
+    updateHypeUI();
+  },HypeEngine.DEF.decayIntervalMs);
+}
+
+// ════════════════════════════════════════════════════════════
+// §12 · NOW PLAYING UI
+// ════════════════════════════════════════════════════════════
+
+function updateOrb(){
+  const w=document.getElementById("orbWrap"),t=TRACKS[trackIdx],sz=110;
+  let rings="";
+  if(playing)[0,1,2].forEach(i=>{rings+=`<div style="position:absolute;inset:0;border-radius:50%;border:2px solid ${t.artColor};opacity:0;animation:pulse 2.4s ease-out ${i*.8}s infinite"></div>`;});
+  const emoji=loading?"⟳":playing?"🎙":"📻";
+  const spin=loading?"animation:spin 1s linear infinite":"";
+  const shadow=playing?`box-shadow:0 0 33px ${t.artColor}50,inset 0 0 22px ${t.artColor}20`:"";
+  w.innerHTML=`${rings}<div style="width:${sz*.82}px;height:${sz*.82}px;border-radius:50%;background:radial-gradient(circle at 35% 35%,${t.artColor}30,#010a08);border:2.5px solid ${playing?t.artColor:"#1a3a30"};${shadow};display:flex;align-items:center;justify-content:center;font-size:${sz*.3}px;transition:all .4s;position:relative;z-index:1;${spin}">${emoji}</div>`;
+}
+
+function updatePlayBtn(){
+  const btn=document.getElementById("playBtn"),t=TRACKS[trackIdx];
+  if(loading){btn.textContent="LOADING…";btn.style.background="linear-gradient(135deg,#0a2a20,#061a14)";btn.style.color=t.artColor;btn.style.borderColor="#0a2a20";btn.style.boxShadow="none";}
+  else if(playing){btn.textContent="⏸ PAUSE";btn.style.background=`linear-gradient(135deg,${t.artColor},${t.artColor}aa)`;btn.style.color="#001a12";btn.style.borderColor=t.artColor;btn.style.boxShadow=`0 0 24px ${t.artColor}40`;}
+  else{btn.textContent="▶ PLAY LIVE";btn.style.background="linear-gradient(135deg,#0a2a20,#061a14)";btn.style.color=t.artColor;btn.style.borderColor="#0a2a20";btn.style.boxShadow="none";}
+}
+
+function updateStream(){
+  const f=document.getElementById("streamFill"),lbl=document.getElementById("streamLabel"),t=TRACKS[trackIdx],m=ModeCtrl.get(modeId);
+  if(playing){f.style.width="100%";f.style.background=`linear-gradient(90deg,${t.artColor},#ffe04b)`;lbl.textContent=`▶ LIVE · ${m.emoji} ${m.label}`;}
+  else{f.style.width="0%";f.style.background="#1a3a30";lbl.textContent=`⏸ PAUSED · ${m.label}`;}
+}
+
+function updateNowPlaying(){
+  const t=TRACKS[trackIdx];
+  document.getElementById("trackTitle").textContent=t.title;
+  const a=document.getElementById("trackArtist");a.textContent=t.artist;a.style.color=t.artColor;
+  document.getElementById("trackTags").innerHTML=`
+    <span style="font-size:9px;padding:3px 9px;border-radius:20px;background:${t.artColor}15;color:${t.artColor};border:1px solid ${t.artColor}30;letter-spacing:.1em">${t.genre}</span>
+    <span style="font-size:9px;padding:3px 9px;border-radius:20px;background:#ffe04b10;color:#ffe04b;border:1px solid #ffe04b30;letter-spacing:.1em">${t.bpm} BPM</span>
+    <span style="font-size:9px;padding:3px 9px;border-radius:20px;background:#ff5c8a10;color:#ff8aaa;border:1px solid #ff5c8a30;letter-spacing:.1em">⚡ ${t.energy}%</span>
+    <span style="font-size:9px;padding:3px 9px;border-radius:20px;background:#a78bfa10;color:#a78bfa;border:1px solid #a78bfa30;letter-spacing:.1em">${t.duration}</span>`;
+  updateOrb();updatePlayBtn();
+}
+
+function toggleLike(){
+  const t=TRACKS[trackIdx];liked[t.id]=!liked[t.id];
+  const btn=document.getElementById("likeBtn");
+  btn.textContent=liked[t.id]?"❤️":"🤍";
+  btn.style.borderColor=liked[t.id]?"#ff5c8a60":"#0a2a20";
+  btn.style.color=liked[t.id]?"#ff8aaa":"#4a7a70";
+}
+
+// ════════════════════════════════════════════════════════════
+// §13 · QUEUE
+// ════════════════════════════════════════════════════════════
+
+function renderQueue(){
+  const filtered=genreFilter==="ALL"?TRACKS:TRACKS.filter(t=>t.genre===genreFilter);
+  document.getElementById("queueCount").textContent=filtered.length;
+  const list=document.getElementById("queueList");list.innerHTML="";
+  filtered.forEach((t,i)=>{
+    const isA=t.id===TRACKS[trackIdx].id;
+    const ec=t.energy>85?"#ff5c8a":t.energy>70?"#ffe04b":"#00f5c4";
+    const div=document.createElement("div");
+    div.className="q-item"+(isA?" active":"");
+    div.onclick=()=>{trackIdx=TRACKS.indexOf(t);onTrackChange();};
+    div.innerHTML=`
+      <div style="width:28px;height:28px;border-radius:6px;background:${isA?`linear-gradient(135deg,${t.artColor},${t.artColor}88)`:"#0a1f1a"};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${isA?"#001a12":t.artColor};flex-shrink:0">${isA&&playing?"♪":i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:${isA?t.artColor:"#c0d8d0"};font-weight:${isA?"700":"400"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+        <div style="font-size:10px;color:#4a7a70">${t.artist}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+        <div style="font-size:9px;color:#4a7a70">${t.bpm}bpm</div>
+        <div style="width:40px;height:3px;background:#0a1f1a;border-radius:2px"><div style="height:100%;width:${t.energy}%;background:${ec};border-radius:2px"></div></div>
+      </div>
+      <button onclick="event.stopPropagation();reqTrack('${t.id}')" style="padding:4px 10px;border-radius:6px;font-size:9px;letter-spacing:.1em;border:1px solid ${requested[t.id]?"#00f5c440":"#0a2a20"};background:${requested[t.id]?"#00f5c420":"transparent"};color:${requested[t.id]?"#00f5c4":"#4a7a70"};flex-shrink:0">${requested[t.id]?"✓":"REQ"}</button>`;
+    list.appendChild(div);
+  });
+}
+
+function reqTrack(id){
+  const auth=Auth.get();
+  if(currentTier==="FREE"&&Object.values(requested).filter(Boolean).length>=1){openUpgrade();return;}
+  requested[id]=true;
+  const t=TRACKS.find(x=>x.id===id);
+  appendChat({id:Date.now(),ts:Date.now(),user:"You",flag:"🌍",msg:`🎵 Requested: "${t.title}" by ${t.artist}`,tier:currentTier,isAI:false});
+  boostHype(6);
+  toast(`✓ Request submitted: ${t.title}`,"success",3000);
+  renderQueue();renderRequests();
+}
+
+// ════════════════════════════════════════════════════════════
+// §14 · CHAT
+// ════════════════════════════════════════════════════════════
+
+function tierBadge(tier){const t=TIERS[tier]??TIERS.FREE;return `<span class="tier-badge" style="background:${t.color}20;color:${t.color};border:1px solid ${t.color}40">${t.name}</span>`;}
+
+function appendChat(msg){
+  chatMessages.push(msg);
+  if(chatMessages.length>120)chatMessages=chatMessages.slice(-100);
+  if(chatTab==="chat")renderChat();
+}
+
+function renderChat(){
+  const scroll=document.getElementById("chatScroll");scroll.innerHTML="";
+  chatMessages.forEach(m=>{
+    const div=document.createElement("div");div.className="chat-msg";
+    const time=new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
+        <span style="font-size:13px">${m.flag}</span>
+        <span style="font-size:12px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em;color:${m.isAI?"#ffe04b":"#00f5c4"}">${m.user}</span>
+        ${tierBadge(m.tier)}
+        <span style="font-size:9px;color:#2a4a40;margin-left:auto">${time}</span>
+      </div>
+      <div style="font-size:13px;color:${m.isAI?"#d4edba":"#9ac8b8"};line-height:1.5;font-style:${m.isAI?"italic":"normal"};padding-left:20px">${m.msg}</div>`;
+    scroll.appendChild(div);
+  });
+  scroll.scrollTop=scroll.scrollHeight;
+}
+
+async function sendChat(){
+  const inp=document.getElementById("chatInput"),txt=inp.value.trim();
+  if(!txt||aiGenerating)return;
+  inp.value="";
+  appendChat({id:Date.now(),ts:Date.now(),user:"You",flag:"🌍",msg:txt,tier:currentTier,isAI:false});
+  boostHype(5);
+  document.getElementById("typingIndicator").style.display="block";
+  const t=TRACKS[trackIdx],m=ModeCtrl.get(modeId),lv=HypeEngine.level(hype);
+  const res=await AIRouter.generate("chat_reply",{userMsg:txt,track:t.title,artist:t.artist,listeners,modeName:m.label,mode:m,hypeLevel:lv.label});
+  document.getElementById("typingIndicator").style.display="none";
+  appendChat({id:Date.now()+1,ts:Date.now(),user:"AI DJ NYCE",flag:"📻",msg:res.response,tier:"VIP",isAI:true});
+}
+
+function switchChatTab(tab,btn){
+  chatTab=tab;
+  document.querySelectorAll(".ctab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+  document.getElementById("chatView").style.display=tab==="chat"?"flex":"none";
+  document.getElementById("chatView").style.flexDirection="column";
+  document.getElementById("requestsView").style.display=tab==="requests"?"block":"none";
+  document.getElementById("pollView").style.display=tab==="poll"?"block":"none";
+  if(tab==="chat")renderChat();
+  if(tab==="requests")renderRequests();
+  if(tab==="poll")renderPoll();
+}
+
+// ════════════════════════════════════════════════════════════
+// §15 · REQUESTS, POLL, MODES, GENRE
+// ════════════════════════════════════════════════════════════
+
+function renderRequests(){
+  const view=document.getElementById("requestsView");view.innerHTML="";
+  const GENRES=["ALL","AFROBEATS","AMAPIANO","DANCEHALL","HIP-HOP","R&B","SOCA","REGGAE"];
+  const filterRow=document.createElement("div");
+  filterRow.style.cssText="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px";
+  GENRES.forEach(g=>{
+    const b=document.createElement("button");
+    b.textContent=g;b.style.cssText=`padding:4px 10px;border-radius:15px;font-size:9px;border:1px solid ${g===genreFilter?"#00f5c440":"#0a2a20"};background:${g===genreFilter?"#00f5c420":"transparent"};color:${g===genreFilter?"#00f5c4":"#4a7a70"};letter-spacing:.1em`;
+    b.onclick=()=>{genreFilter=g;renderRequests();renderQueue();};
+    filterRow.appendChild(b);
+  });
+  view.appendChild(filterRow);
+  const filtered=genreFilter==="ALL"?TRACKS:TRACKS.filter(t=>t.genre===genreFilter);
+  filtered.forEach(t=>{
+    const div=document.createElement("div");
+    div.style.cssText="display:flex;align-items:center;gap:10px;padding:9px 11px;background:#010a08;border-radius:9px;border:1px solid #0a2a20;margin-bottom:6px";
+    div.innerHTML=`
+      <div style="width:9px;height:9px;border-radius:50%;background:${t.artColor};flex-shrink:0;box-shadow:0 0 6px ${t.artColor}"></div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;color:#c0d8d0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div><div style="font-size:9px;color:#4a7a70">${t.genre} · ${t.bpm}bpm · ⚡${t.energy}</div></div>
+      <button onclick="reqTrack('${t.id}')" style="padding:4px 10px;border-radius:6px;font-size:9px;letter-spacing:.1em;border:1px solid ${requested[t.id]?"#00f5c440":"#0a2a20"};background:${requested[t.id]?"#00f5c420":"transparent"};color:${requested[t.id]?"#00f5c4":"#4a7a70"};flex-shrink:0">${requested[t.id]?"✓ SENT":"REQUEST"}</button>`;
+    view.appendChild(div);
+  });
+  if(currentTier==="FREE"){
+    const note=document.createElement("div");
+    note.style.cssText="font-size:10px;color:#4a7a70;text-align:center;padding:8px;border-top:1px solid #0a2a20;margin-top:4px";
+    note.innerHTML='FREE: 1 req/hr · <button onclick="openUpgrade()" style="background:none;border:none;color:#ffe04b;cursor:pointer;font-size:10px;text-decoration:underline">Upgrade ↑</button>';
+    view.appendChild(note);
+  }
+}
+
+function renderPoll(){
+  const view=document.getElementById("pollView");view.innerHTML='<div style="font-size:14px;color:#c0d8d0;margin-bottom:14px;font-weight:700">🎵 What genre next?</div>';
+  const total=pollVotes.reduce((a,b)=>a+b,0);
+  POLL_OPTS.forEach((opt,i)=>{
+    const pct=pollVoted!==null?Math.round((pollVotes[i]/total)*100):0;
+    const btn=document.createElement("button");
+    btn.style.cssText="width:100%;padding:0;background:none;border:none;text-align:left;margin-bottom:8px;cursor:"+(pollVoted!==null?"default":"pointer");
+    btn.onclick=()=>{if(pollVoted!==null)return;pollVoted=i;pollVotes[i]++;boostHype(5);toast("✓ Vote cast!","success",2000);renderPoll();};
+    btn.innerHTML=`<div style="position:relative;padding:10px 13px;border-radius:8px;border:1px solid ${pollVoted===i?"#00f5c440":"#0a2a20"};overflow:hidden;background:${pollVoted===i?"#00f5c410":"#010a08"}"><div style="position:absolute;left:0;top:0;bottom:0;width:${pollVoted!==null?pct:0}%;background:#00f5c410;transition:width .7s ease"></div><div style="position:relative;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:${pollVoted===i?"#00f5c4":"#9ac8b8"}">${opt}</span>${pollVoted!==null?`<span style="font-size:11px;color:#00f5c4;font-weight:700">${pct}%</span>`:""}</div></div>`;
+    view.appendChild(btn);
+  });
+  const meta=document.createElement("div");
+  meta.style.cssText="font-size:9px;color:#4a7a70;text-align:center;margin-top:6px";
+  meta.textContent=`${total} votes · ${pollVoted!==null?"Your vote is counted ✓":"Tap to vote"}`;
+  view.appendChild(meta);
+}
+
+function buildModeChips(){
+  const row=document.getElementById("modeChips");
+  ModeCtrl.all().forEach(m=>{
+    const btn=document.createElement("button");
+    btn.style.cssText=`padding:5px 12px;border-radius:20px;font-size:9px;letter-spacing:.1em;white-space:nowrap;transition:all .2s;font-weight:${modeId===m.id?"700":"400"};border:1px solid ${modeId===m.id?m.color+"50":"#0a2a20"};background:${modeId===m.id?m.color+"20":"transparent"};color:${modeId===m.id?m.color:"#4a7a70"}`;
+    btn.textContent=m.emoji+" "+m.label;
+    btn.onclick=()=>{
+      modeId=m.id;
+      document.getElementById("modeLabelNP").textContent=m.label;
+      document.getElementById("aiModeLabel").textContent=`${m.emoji} ${m.label} · ACTIVE`;
+      updateStream();
+      buildModeChips();
+    };
+    row.appendChild(btn);
+  });
+}
+
+function buildGenreChips(){
+  const GENRES=["ALL","AFROBEATS","AMAPIANO","DANCEHALL","HIP-HOP","R&B","SOCA","REGGAE"];
+  const row=document.getElementById("genreChips");row.innerHTML="";
+  GENRES.forEach(g=>{
+    const btn=document.createElement("button");
+    btn.style.cssText=`padding:4px 10px;border-radius:15px;font-size:9px;letter-spacing:.1em;border:1px solid ${g===genreFilter?"#00f5c440":"#0a2a20"};background:${g===genreFilter?"#00f5c420":"transparent"};color:${g===genreFilter?"#00f5c4":"#4a7a70"}`;
+    btn.textContent=g;
+    btn.onclick=()=>{genreFilter=g;buildGenreChips();renderQueue();};
+    row.appendChild(btn);
+  });
+}
+
+function buildAIMeters(){
+  const m=ModeCtrl.get(modeId);
+  const meters=[{l:"Mix Intelligence",v:96,c:"#00f5c4"},{l:"Crowd Energy",v:Math.round(hype),c:HypeEngine.level(hype).color},{l:"AI Confidence",v:91,c:"#ff8aaa"},{l:"Voice Synthesis",v:94,c:"#a78bfa"}];
+  document.getElementById("aiMeters").innerHTML=meters.map(x=>`
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#4a7a70;margin-bottom:3px"><span>${x.l}</span><span style="color:${x.c}">${x.v}%</span></div>
+      <div style="height:3px;background:#0a1f1a;border-radius:2px"><div style="height:100%;width:${x.v}%;background:${x.c};border-radius:2px;box-shadow:0 0 6px ${x.c}50;transition:width .5s ease"></div></div>
+    </div>`).join("");
+}
+
+// ════════════════════════════════════════════════════════════
+// §16 · AI SHOUTOUT
+// ════════════════════════════════════════════════════════════
+
+async function triggerShoutout(type="shoutout"){
+  if(aiGenerating)return;
+  aiGenerating=true;
+  document.getElementById("aiGenSpinner").style.display="inline-block";
+  document.getElementById("aiFallbackBadge").style.display="none";
+  document.getElementById("btnShoutout").disabled=true;
+  document.getElementById("btnIntro").disabled=true;
+
+  const t=TRACKS[trackIdx],m=ModeCtrl.get(modeId),lv=HypeEngine.level(hype);
+  const res=await AIRouter.generate(type,{
+    track:t.title,artist:t.artist,genre:t.genre,bpm:t.bpm,energy:t.energy,
+    listeners,modeName:m.label,mode:m,hypeLevel:lv.label,
+  });
+
+  document.getElementById("aiText").textContent=res.response;
+  if(res.fallback)document.getElementById("aiFallbackBadge").style.display="inline-block";
+  document.getElementById("aiGenSpinner").style.display="none";
+  document.getElementById("btnShoutout").disabled=false;
+  document.getElementById("btnIntro").disabled=false;
+  aiGenerating=false;
+  appendChat({id:Date.now(),ts:Date.now(),user:"AI DJ NYCE",flag:"📻",msg:res.response,tier:"VIP",isAI:true});
+  boostHype(8);
+  toast(res.fallback?"⚡ Fallback response used":"🎤 AI shoutout generated!",res.fallback?"warn":"success",3000);
+}
+
+// ════════════════════════════════════════════════════════════
+// §17 · TIP BUTTONS
+// ════════════════════════════════════════════════════════════
+
+function buildTipButtons(){
+  const row=document.getElementById("tipButtons");row.innerHTML="";
+  StripeService.AMOUNTS.forEach(({label,cents})=>{
+    const btn=document.createElement("button");
+    btn.textContent=label;
+    btn.style.cssText="padding:7px 13px;border-radius:8px;background:#00f5c410;border:1px solid #00f5c430;color:#00f5c4;font-size:11px;font-weight:700;transition:all .2s";
+    btn.onclick=async()=>{
+      btn.disabled=true;btn.textContent="…";
+      const res=await StripeService.tip({amountCents:cents});
+      if(res.success){
+        document.getElementById("tipResult").textContent=`✓ ${label} tip sent! You're legendary. 🙏`;
+        document.getElementById("tipResult").style.display="block";
+        appendChat({id:Date.now(),ts:Date.now(),user:"You",flag:"🌍",msg:`💸 Sent a ${label} tip to DJ NYCE! 🙏`,tier:currentTier,isAI:false});
+        boostHype(10);toast(`💸 ${label} tip sent! Thank you!`,"success");
+        setTimeout(()=>{document.getElementById("tipResult").style.display="none";},4000);
+      }else{
+        document.getElementById("tipError").textContent="⚠ "+res.error;
+        document.getElementById("tipError").style.display="block";
+        setTimeout(()=>{document.getElementById("tipError").style.display="none";},5000);
+      }
+      btn.disabled=false;btn.textContent=label;
+    };
+    row.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// §18 · UPGRADE MODAL
+// ════════════════════════════════════════════════════════════
+
+function openUpgrade(){
+  document.getElementById("tierCards").innerHTML=Object.values(TIERS).map(tier=>`
+    <div style="background:${tier.color}08;border:1px solid ${tier.color}30;border-radius:14px;padding:18px;text-align:center">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${tier.color};letter-spacing:.1em">${tier.name}</div>
+      <div style="font-size:26px;color:#fff;font-weight:700;margin:8px 0">${tier.price}<span style="font-size:12px;color:#4a7a70">/mo</span></div>
+      ${tier.features.map(f=>`<div style="font-size:11px;color:#9ac8b8;display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:4px"><span style="color:${tier.color}">✓</span>${f}</div>`).join("")}
+      <button onclick="selectTier('${tier.name}')" style="width:100%;padding:9px;border-radius:8px;margin-top:12px;background:${tier.name==="FREE"?"transparent":`linear-gradient(135deg,${tier.color},${tier.color}cc)`};color:${tier.name==="FREE"?tier.color:"#001a12"};border:1px solid ${tier.color};font-size:11px;letter-spacing:.1em;font-weight:700;opacity:${currentTier===tier.name?.5:1}">${currentTier===tier.name?"CURRENT PLAN":tier.name==="FREE"?"FREE":"GET "+tier.name}</button>
+    </div>`).join("");
+  document.getElementById("upgradeModal").classList.add("open");
+}
+function closeUpgrade(){document.getElementById("upgradeModal").classList.remove("open");}
+async function selectTier(plan){
+  if(plan!=="FREE"){
+    const res=await StripeService.subscribe(plan);
+    if(res.success){
+      currentTier=plan;
+      if(plan!=="FREE")document.getElementById("upgradeBanner").style.display="none";
+      toast(`🌟 Upgraded to ${plan}!`,"success");
+    }
+  }
+  closeUpgrade();
+  Auth.renderAuth();
+}
+
+// ════════════════════════════════════════════════════════════
+// §19 · ADMIN MODAL (with KPI, ADR, SLA tabs — v3.1)
+// ════════════════════════════════════════════════════════════
+
+function openAdmin(){
+  const auth=Auth.get();
+  document.getElementById("adminRoleBadge").textContent="ROLE: "+(auth.role??"GUEST").toUpperCase();
+  document.getElementById("adminUserName").textContent=auth.user?.displayName??"Guest";
+  renderAdminContent();
+  document.getElementById("adminModal").classList.add("open");
+}
+function closeAdmin(){document.getElementById("adminModal").classList.remove("open");}
+
+function switchAdminTab(tab,btn){
+  adminTab=tab;
+  document.querySelectorAll(".admin-tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+  renderAdminContent();
+}
+
+function adminAct(label,fn){
+  adminLog.unshift({msg:label,ts:Date.now()});adminLog=adminLog.slice(0,20);
+  toast("Admin: "+label,"info",3000);
+  fn?.();
+}
+
+function renderAdminContent(){
+  const el=document.getElementById("adminContent");
+  if(!el)return;
+
+  if(adminTab==="queue"){
+    el.innerHTML=`<div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:12px">▸ TRACK QUEUE — CLICK TO BROADCAST</div>`+
+      TRACKS.map((t,i)=>`
+        <div onclick="adminSetTrack(${i})" style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:6px;border-radius:10px;border:1px solid ${t.id===TRACKS[trackIdx].id?"#00f5c430":"#0a2a20"};background:${t.id===TRACKS[trackIdx].id?"#00f5c410":"#030f0c"};cursor:pointer">
+          <div style="width:24px;height:24px;border-radius:6px;background:${t.artColor}30;border:1px solid ${t.artColor}40;display:flex;align-items:center;justify-content:center;font-size:10px;color:${t.artColor};font-weight:bold">${i+1}</div>
+          <div style="flex:1"><div style="font-size:13px;color:${t.id===TRACKS[trackIdx].id?"#00f5c4":"#c0d8d0"}">${t.title}</div><div style="font-size:10px;color:#4a7a70">${t.artist} · ${t.genre} · ${t.bpm}BPM · ⚡${t.energy}</div></div>
+          <span style="font-size:9px;padding:3px 8px;border-radius:6px;background:${t.id===TRACKS[trackIdx].id?"#00f5c420":"transparent"};color:${t.id===TRACKS[trackIdx].id?"#00f5c4":"#4a7a70"};border:1px solid ${t.id===TRACKS[trackIdx].id?"#00f5c440":"#0a2a20"}">${t.id===TRACKS[trackIdx].id?"▶ LIVE":"QUEUE"}</span>
+        </div>`).join("");
+
+  } else if(adminTab==="library"){
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ LIBRARY UPLOAD — TRACKS & PLAYLISTS</div>
+
+      <!-- Upload zone -->
+      <div id="libDropZone" ondragover="libDragOver(event)" ondragleave="libDragLeave(event)" ondrop="libDrop(event)"
+        style="border:2px dashed #00f5c430;border-radius:14px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:18px;background:#010a08"
+        onclick="document.getElementById('libFileInput').click()">
+        <div style="font-size:28px;margin-bottom:8px">🎵</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#00f5c4;letter-spacing:.08em;margin-bottom:4px">DROP TRACKS HERE OR CLICK TO BROWSE</div>
+        <div style="font-size:10px;color:#4a7a70;letter-spacing:.1em">MP3 · WAV · FLAC · AAC · OGG · Max 200MB per file</div>
+        <input id="libFileInput" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.ogg" style="display:none" onchange="libFilePicked(this.files)"/>
+      </div>
+
+      <!-- URL / Stream import -->
+      <div style="background:#030f0c;border:1px solid #0a2a20;border-radius:12px;padding:14px;margin-bottom:18px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:10px">▸ IMPORT FROM URL / STREAM</div>
+        <div style="display:flex;gap:8px">
+          <input id="libUrlInput" placeholder="https://cdn.example.com/track.mp3 or Icecast stream URL…"
+            style="flex:1;background:#010a08;border:1px solid #0a2a20;border-radius:8px;color:#c0d8d0;font-size:12px;padding:9px 12px;outline:none"/>
+          <button onclick="libImportUrl()" style="padding:9px 16px;border-radius:8px;background:#00f5c415;border:1px solid #00f5c430;color:#00f5c4;font-size:10px;letter-spacing:.08em;white-space:nowrap">IMPORT</button>
+        </div>
+      </div>
+
+      <!-- Upload queue -->
+      <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:10px">▸ UPLOAD QUEUE (<span id="libQueueCount">0</span> pending)</div>
+      <div id="libUploadQueue" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+        <div style="font-size:11px;color:#2a4a40;text-align:center;padding:14px 0">No files queued. Add tracks above to get started.</div>
+      </div>
+
+      <!-- Metadata form (shown when files queued) -->
+      <div id="libMetaForm" style="display:none;background:#030f0c;border:1px solid #00f5c420;border-radius:14px;padding:18px;margin-bottom:18px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:14px">▸ TRACK METADATA — <span id="libMetaFileName" style="color:#ffe04b;font-size:9px"></span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">TRACK TITLE</div>
+            <input id="libMetaTitle" placeholder="e.g. Afrobeats Takeover" style="width:100%;background:#010a08;border:1px solid #0a2a20;border-radius:7px;color:#c0d8d0;font-size:12px;padding:8px 10px;outline:none"/>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">ARTIST</div>
+            <input id="libMetaArtist" placeholder="e.g. DJ NYCE ft. Burna Boy" style="width:100%;background:#010a08;border:1px solid #0a2a20;border-radius:7px;color:#c0d8d0;font-size:12px;padding:8px 10px;outline:none"/>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">GENRE</div>
+            <select id="libMetaGenre" style="width:100%;background:#010a08;border:1px solid #0a2a20;border-radius:7px;color:#c0d8d0;font-size:12px;padding:8px 10px;outline:none;cursor:pointer">
+              <option>AFROBEATS</option><option>AMAPIANO</option><option>HIP-HOP</option><option>DANCEHALL</option>
+              <option>SOCA</option><option>R&amp;B</option><option>REGGAE</option><option>AFROPOP</option>
+              <option>DRILL</option><option>HOUSE</option><option>TRAP</option><option>OTHER</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">BPM</div>
+            <input id="libMetaBpm" type="number" placeholder="e.g. 102" min="40" max="200" style="width:100%;background:#010a08;border:1px solid #0a2a20;border-radius:7px;color:#c0d8d0;font-size:12px;padding:8px 10px;outline:none"/>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">ENERGY (0–100)</div>
+            <input id="libMetaEnergy" type="number" placeholder="e.g. 88" min="0" max="100" style="width:100%;background:#010a08;border:1px solid #0a2a20;border-radius:7px;color:#c0d8d0;font-size:12px;padding:8px 10px;outline:none"/>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">ACCENT COLOR</div>
+            <input id="libMetaColor" type="color" value="#00f5c4" style="width:100%;height:37px;background:#010a08;border:1px solid #0a2a20;border-radius:7px;cursor:pointer;padding:2px 4px"/>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.12em;margin-bottom:5px">ADD TO PLAYLIST</div>
+          <div id="libPlaylistChips" style="display:flex;gap:6px;flex-wrap:wrap">
+            ${libPlaylists.map((p,i)=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#6a9a88;border:1px solid #0a2a20;border-radius:6px;padding:4px 8px;background:#010a08"><input type="checkbox" data-pl="${i}" style="accent-color:#00f5c4;cursor:pointer"/> ${p.name}</label>`).join("")}
+            <button onclick="libAddPlaylist()" style="padding:4px 10px;border-radius:6px;background:#00f5c410;border:1px solid #00f5c430;color:#00f5c4;font-size:10px">+ New Playlist</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="libApplyMeta()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#00f5c4,#00c49a);border:none;color:#001a12;font-size:11px;letter-spacing:.1em;font-weight:700">✓ SAVE METADATA</button>
+          <button onclick="libUploadSelected()" style="flex:1;padding:10px;border-radius:9px;background:#00f5c415;border:1px solid #00f5c430;color:#00f5c4;font-size:11px;letter-spacing:.1em">⬆ UPLOAD TO LIBRARY</button>
+        </div>
+      </div>
+
+      <!-- Playlist manager -->
+      <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:10px">▸ PLAYLIST MANAGER (<span id="libPlCount">0</span>)</div>
+      <div id="libPlaylistList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        <div style="font-size:11px;color:#2a4a40;text-align:center;padding:10px 0">No playlists yet. Create one above.</div>
+      </div>
+      <button onclick="libAddPlaylist()" style="width:100%;padding:10px;border-radius:9px;background:#030f0c;border:1px solid #00f5c420;color:#00f5c4;font-size:10px;letter-spacing:.12em">+ CREATE NEW PLAYLIST</button>
+
+      <!-- Library track list -->
+      <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin:18px 0 10px">▸ UPLOADED LIBRARY (<span id="libTrackCount">${TRACKS.length}</span> tracks)</div>
+      <div id="libTrackList" style="display:flex;flex-direction:column;gap:6px">
+        ${TRACKS.map((t,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#030f0c;border:1px solid #0a2a20;border-radius:10px">
+            <div style="width:28px;height:28px;border-radius:7px;background:${t.artColor}25;border:1px solid ${t.artColor}40;display:flex;align-items:center;justify-content:center;font-size:11px;color:${t.artColor};font-weight:700;flex-shrink:0">${i+1}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;color:#c0d8d0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+              <div style="font-size:9px;color:#4a7a70">${t.artist} · ${t.genre} · ${t.bpm}BPM · ⚡${t.energy} · ${t.duration}</div>
+            </div>
+            <div style="display:flex;gap:5px;flex-shrink:0">
+              <button onclick="adminSetTrack(${i});adminAct('Playing: ${t.title}')" style="padding:4px 10px;border-radius:6px;background:#00f5c415;border:1px solid #00f5c430;color:#00f5c4;font-size:9px">▶ PLAY</button>
+              <button onclick="libRemoveTrack(${i})" style="padding:4px 8px;border-radius:6px;background:#ff000015;border:1px solid #ff000030;color:#ff8aaa;font-size:9px">✕</button>
+            </div>
+          </div>`).join("")}
+      </div>`;
+    // Re-render playlist list
+    libRenderPlaylists();
+
+  } else if(adminTab==="kpi"){
+    // KPI Dashboard (v3.1) — investor-grade metrics
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ LISTENER KPI FRAMEWORK — v3.1</div>
+      <div class="callout info" style="margin-bottom:14px">Investor-grade metrics: track these 5 KPIs weekly. They determine Kubernetes gate, TimescaleDB migration, and PRO licensing unlock.</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:3px">DAILY ACTIVE LISTENERS</div>
+          <div class="kpi-val" style="color:#00f5c4">${KPI.dailyActiveListeners.toLocaleString()}</div>
+          <div class="kpi-sub">↑ 12% WoW</div>
+          <div style="height:2px;background:#0a1f1a;border-radius:2px;margin-top:6px"><div style="height:100%;width:${Math.min((KPI.dailyActiveListeners/5000)*100,100)}%;background:#00f5c4;border-radius:2px"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:3px">AVG LISTENING TIME</div>
+          <div class="kpi-val" style="color:#ffe04b">${KPI.avgListeningTimeMin}m</div>
+          <div class="kpi-sub">Target: 30m+</div>
+          <div style="height:2px;background:#0a1f1a;border-radius:2px;margin-top:6px"><div style="height:100%;width:${(KPI.avgListeningTimeMin/60)*100}%;background:#ffe04b;border-radius:2px"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:3px">SESSION COMPLETION</div>
+          <div class="kpi-val" style="color:#fb923c">${KPI.sessionCompletionRate}%</div>
+          <div class="kpi-sub">Target: 70%+</div>
+          <div style="height:2px;background:#0a1f1a;border-radius:2px;margin-top:6px"><div style="height:100%;width:${KPI.sessionCompletionRate}%;background:#fb923c;border-radius:2px"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:3px">SUBSCRIBER CONVERSION</div>
+          <div class="kpi-val" style="color:#a78bfa">${KPI.subscriberConversionRate}%</div>
+          <div class="kpi-sub">Target: 5%+</div>
+          <div style="height:2px;background:#0a1f1a;border-radius:2px;margin-top:6px"><div style="height:100%;width:${(KPI.subscriberConversionRate/10)*100}%;background:#a78bfa;border-radius:2px"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:3px">AI INTERACTION RATE</div>
+          <div class="kpi-val" style="color:#ff8aaa">${KPI.aiInteractionRate}%</div>
+          <div class="kpi-sub">Listeners using AI</div>
+          <div style="height:2px;background:#0a1f1a;border-radius:2px;margin-top:6px"><div style="height:100%;width:${KPI.aiInteractionRate}%;background:#ff8aaa;border-radius:2px"></div></div>
+        </div>
+        <div class="kpi-card">
+          <div style="font-size:9px;color:#4a7a70;letter-spacing:.15em;margin-bottom:3px">REVENUE TODAY</div>
+          <div class="kpi-val" style="color:#00f5c4">$${KPI.revenueToday}</div>
+          <div class="kpi-sub">${KPI.sessionsToday.toLocaleString()} sessions</div>
+        </div>
+      </div>
+      <div style="background:#030f0c;border:1px solid #1a2a22;border-radius:10px;padding:14px;margin-top:8px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:10px">▸ SCALE GATE STATUS (v3.1 — Kubernetes deferred to 25K–50K)</div>
+        ${[
+          {gate:"GATE 1",label:"Cloudflare Business",trigger:"5K listeners OR $10K MRR",current:`${listeners.toLocaleString()} listeners`,pct:Math.min((listeners/5000)*100,100),color:"#ffe04b"},
+          {gate:"GATE 2",label:"Kubernetes (GKE)",trigger:"25K–50K concurrent OR multi-team",current:"3.8K listeners",pct:Math.min((listeners/25000)*100,100),color:"#a78bfa"},
+          {gate:"GATE 3",label:"TimescaleDB",trigger:">10M analytics events/day",current:"~85K events/day",pct:0.85,color:"#38bdf8"},
+          {gate:"GATE 4",label:"Multi-region",trigger:"Regulatory or P95 latency need",current:"Not triggered",pct:0,color:"#fb923c"},
+        ].map(g=>`
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <div>
+                <span style="font-size:9px;background:${g.color}20;color:${g.color};border:1px solid ${g.color}30;border-radius:4px;padding:1px 7px;letter-spacing:.1em;font-weight:700">${g.gate}</span>
+                <span style="font-size:11px;color:#c0d8d0;margin-left:8px">${g.label}</span>
+              </div>
+              <span style="font-size:9px;color:#4a7a70">${g.current}</span>
+            </div>
+            <div style="font-size:9px;color:#4a7a70;margin-bottom:3px">Trigger: ${g.trigger}</div>
+            <div style="height:3px;background:#0a1f1a;border-radius:2px"><div style="height:100%;width:${g.pct}%;background:${g.color};border-radius:2px;transition:width .6s ease"></div></div>
+          </div>`).join("")}
+      </div>`;
+
+  } else if(adminTab==="analytics"){
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ PLATFORM ANALYTICS</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px">
+        ${[{l:"Live Listeners",v:listeners.toLocaleString(),i:"📡"},{l:"Peak Today",v:peakListeners.toLocaleString(),i:"📈"},{l:"Countries",v:"42",i:"🌍"},{l:"MRR",v:"$4,280",i:"💰"},{l:"Premium Users",v:"847",i:"⭐"},{l:"Avg Session",v:"28m",i:"⏱"}].map(s=>`
+          <div style="background:#030f0c;border:1px solid #00f5c415;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:18px">${s.i}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#00f5c4">${s.v}</div>
+            <div style="font-size:9px;color:#4a7a70;letter-spacing:.1em">${s.l.toUpperCase()}</div>
+          </div>`).join("")}
+      </div>
+      <div style="background:#030f0c;border:1px solid #00f5c415;border-radius:12px;padding:16px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:12px">▸ LISTENER GEOGRAPHY</div>
+        ${[{c:"🇳🇬 Nigeria",p:28},{c:"🇺🇸 USA",p:22},{c:"🇬🇧 UK",p:15},{c:"🇬🇭 Ghana",p:12},{c:"🇿🇦 South Africa",p:8},{c:"Other",p:15}].map(r=>`
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ac8b8;margin-bottom:3px"><span>${r.c}</span><span style="color:#00f5c4">${r.p}%</span></div>
+            <div style="height:3px;background:#0a1f1a;border-radius:2px"><div style="height:100%;width:${r.p}%;background:linear-gradient(90deg,#00f5c4,#ffe04b);border-radius:2px"></div></div>
+          </div>`).join("")}
+      </div>`;
+
+  } else if(adminTab==="broadcast"){
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ BROADCAST CONTROLS</div>
+      <div style="background:#030f0c;border:1px solid #00f5c415;border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.15em;margin-bottom:8px">📢 BROADCAST MESSAGE</div>
+        <div style="display:flex;gap:8px">
+          <input id="bcastInput" placeholder="Message to all listeners…" style="flex:1;background:#010a08;border:1px solid #0a2a20;border-radius:7px;color:#c0d8d0;font-size:12px;padding:8px 11px;outline:none"/>
+          <button onclick="doBroadcast()" style="padding:8px 16px;border-radius:8px;background:#00f5c415;border:1px solid #00f5c430;color:#00f5c4;font-size:10px;letter-spacing:.1em">SEND</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <button onclick="adminAct('Chat cleared',()=>chatMessages=[])" style="padding:10px;border-radius:8px;background:#ff5c8a15;border:1px solid #ff5c8a30;color:#ff8aaa;font-size:10px;letter-spacing:.1em">🗑 CLEAR CHAT</button>
+
+        <button onclick="adminAct('Force track switch')" style="padding:10px;border-radius:8px;background:#a78bfa15;border:1px solid #a78bfa30;color:#a78bfa;font-size:10px;letter-spacing:.1em">⏭ FORCE TRACK SWITCH</button>
+        <button onclick="adminAct('AI shoutout triggered',()=>triggerShoutout('shoutout'))" style="padding:10px;border-radius:8px;background:#00f5c415;border:1px solid #00f5c430;color:#00f5c4;font-size:10px;letter-spacing:.1em">🤖 TRIGGER AI SHOUTOUT</button>
+      </div>
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:10px">▸ MODE SWITCH</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${ModeCtrl.all().map(m=>`<button onclick="adminAct('Mode → ${m.label}',()=>{modeId='${m.id}';document.getElementById('modeLabelNP').textContent='${m.label}';updateStream();buildModeChips();})" style="padding:9px;border-radius:8px;background:${m.color}15;border:1px solid ${m.color}30;color:${m.color};font-size:10px;text-align:left">${m.emoji} ${m.label}</button>`).join("")}
+      </div>`;
+
+  } else if(adminTab==="moderation"){
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ CHAT MODERATION (${chatMessages.length} MESSAGES)</div>
+      <div style="max-height:400px;overflow-y:auto">
+        ${[...chatMessages].reverse().slice(0,25).map(m=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:6px;background:#030f0c;border:1px solid #0a2a20;border-radius:8px">
+            <span style="font-size:14px">${m.flag}</span>
+            <div style="flex:1;min-width:0"><div style="font-size:11px;color:#00f5c4;font-weight:bold">${m.user}</div><div style="font-size:12px;color:#9ac8b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.msg.substring(0,80)}${m.msg.length>80?"…":""}</div></div>
+            <div style="display:flex;gap:5px">
+              <button onclick="adminAct('Muted: ${m.user}')" style="padding:3px 8px;border-radius:5px;background:#fb923c15;border:1px solid #fb923c30;color:#fb923c;font-size:9px">MUTE</button>
+              <button onclick="adminAct('Banned: ${m.user}')" style="padding:3px 8px;border-radius:5px;background:#ff000015;border:1px solid #ff000030;color:#ff6060;font-size:9px">BAN</button>
+            </div>
+          </div>`).join("")}
+      </div>`;
+
+  } else if(adminTab==="adr"){
+    // Architecture Decision Records (v3.1 — new tab)
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ ARCHITECTURE DECISION RECORDS</div>
+      <div class="callout info" style="margin-bottom:14px">ADRs document every major architecture decision. Invaluable 6 months later when the team questions prior choices.</div>
+      <div class="adr-list">
+        ${[
+          {id:"ADR-001",title:"Replace Kubernetes with Cloud Run",status:"ACCEPTED",decision:"Cloud Run for MVP until 25K–50K concurrent listeners OR multiple engineering teams. Trigger: sustained >25K concurrent or deployment bottlenecks, not a calendar date. Rationale: ~70% less operational complexity. Cloud Run containers are k8s-ready — migration is mechanical."},
+          {id:"ADR-002",title:"Modular Monolith over Microservices",status:"ACCEPTED",decision:"Single Fastify application with clean domain module boundaries (broadcast, ai, audio, users, payments, community, analytics, licensing). Each module is the future service boundary. Decompose when >2 engineering teams require independent deployment velocity."},
+          {id:"ADR-003",title:"PostgreSQL Instead of TimescaleDB",status:"ACCEPTED",decision:"PostgreSQL with pg_cron aggregation and range partitioning by month handles 100K MAU without TimescaleDB. Migrate when analytics events exceed 10M/day — data volume, not time, triggers the migration. Partitioned tables make migration mechanical."},
+          {id:"ADR-004",title:"Icecast over Wowza",status:"ACCEPTED",decision:"Icecast2 is free, battle-tested, and sufficient for 50K concurrent listeners with CDN caching. Primary + secondary pair with Cloudflare DNS failover (30s TTL) provides adequate reliability. Migrate to Wowza/SRS at >50K concurrent."},
+          {id:"ADR-005",title:"AI Provider Abstraction — 4 Providers + Fallback",status:"ACCEPTED",decision:"AIProviderRouter with Claude (primary), OpenAI (secondary), Gemini (cost routing), LocalLLM (optional), and template FallbackProvider (guaranteed). Claude-only = silent DJ on outage. Abstraction costs 2 days to build and provides existential resilience."},
+          {id:"ADR-006",title:"Clerk vs Auth.js + PostgreSQL",status:"UNDER REVIEW",decision:"Clerk ($25/mo) provides managed auth with social login, email magic links, and session management. Auth.js + PostgreSQL is free and equally capable for email + social login. Evaluate at >500 MAU: if Clerk cost exceeds $100/mo, migrate to Auth.js. Both are JWT-compatible."},
+          {id:"ADR-007",title:"BullMQ over NATS JetStream",status:"ACCEPTED",decision:"BullMQ uses already-provisioned Redis. NATS JetStream requires additional infrastructure and operational expertise. Migrate to NATS when multi-service architecture is required (i.e., after ADR-002 triggers service decomposition)."},
+        ].map(a=>`
+          <div class="adr-item">
+            <div class="adr-id">${a.id}</div>
+            <div class="adr-title">${a.title}</div>
+            <div class="adr-decision">${a.decision}</div>
+            <span class="adr-status">${a.status}</span>
+          </div>`).join("")}
+      </div>`;
+
+  } else if(adminTab==="sla"){
+    // AI Safety SLA dashboard (v3.1 — new)
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:16px">▸ AI SAFETY PIPELINE — PERFORMANCE SLAs</div>
+      <div class="callout warn" style="margin-bottom:14px">Every moderation layer adds latency to live broadcast. These quantitative SLAs prevent the safety pipeline from becoming a UX bottleneck.</div>
+      <div style="background:#030f0c;border:1px solid #1a2a22;border-radius:10px;padding:16px;margin-bottom:14px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:12px">▸ TARGET SLAs</div>
+        ${[
+          {stage:"AI Generation (Claude → response)",target:"< 1,000ms",current:"~650ms",ok:true,color:"#00f5c4"},
+          {stage:"Safety Pipeline (8 validation stages)",target:"< 300ms",current:"~120ms",ok:true,color:"#ffe04b"},
+          {stage:"Total insertion delay (end-to-end)",target:"< 2,000ms",current:"~820ms",ok:true,color:"#a78bfa"},
+          {stage:"False positive rate (safety rejection)",target:"< 2%",current:"~0.8%",ok:true,color:"#fb923c"},
+          {stage:"Provider failover latency",target:"< 5,000ms",current:"~900ms",ok:true,color:"#38bdf8"},
+          {stage:"Fallback response guarantee",target:"100%",current:"100%",ok:true,color:"#00f5c4"},
+        ].map(s=>`
+          <div class="sla-row">
+            <div>
+              <div style="font-size:12px;color:#c0d8d0">${s.stage}</div>
+              <div style="font-size:10px;color:#4a7a70;margin-top:2px">Target: ${s.target} · Current: ${s.current}</div>
+            </div>
+            <span style="font-size:13px;color:${s.ok?"#00f5c4":"#ff8aaa"}">${s.ok?"✓":"⚠"}</span>
+            <span style="font-size:20px">${s.ok?"🟢":"🔴"}</span>
+          </div>`).join("")}
+      </div>
+      <div style="background:#030f0c;border:1px solid #1a2a22;border-radius:10px;padding:16px">
+        <div style="font-size:10px;color:#00f5c460;letter-spacing:.2em;margin-bottom:12px">▸ 8-STAGE SAFETY PIPELINE</div>
+        ${["Profanity + hate speech filter","Artist/track hallucination check (vs DB)","Duplicate detection (SHA-256, last 100 broadcasts)","Competitor station mention detection","Legal claim detection (defamation risk)","PII / personal data leak detection","Content length + format validation","Confidence score threshold gate"].map((s,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #0a1f1a">
+            <span style="font-size:9px;background:#00f5c420;color:#00f5c4;border:1px solid #00f5c440;border-radius:4px;padding:1px 7px;letter-spacing:.08em;flex-shrink:0">Stage ${i+1}</span>
+            <span style="font-size:12px;color:#9ac8b8">${s}</span>
+            <span style="margin-left:auto;color:#00f5c4;font-size:13px">✓</span>
+          </div>`).join("")}
+      </div>`;
+
+  } else if(adminTab==="log"){
+    el.innerHTML=`
+      <div style="font-size:11px;color:#00f5c460;letter-spacing:.2em;margin-bottom:12px">▸ ADMIN ACTION LOG</div>
+      ${adminLog.length===0?"<div style='font-size:12px;color:#4a7a70'>No actions logged yet.</div>":
+        adminLog.map(a=>`<div style="display:flex;gap:12px;align-items:center;padding:8px 12px;margin-bottom:6px;background:#030f0c;border:1px solid #0a2a20;border-radius:8px"><span style="font-size:9px;color:#4a7a70;flex-shrink:0">${new Date(a.ts).toLocaleTimeString()}</span><span style="font-size:12px;color:#9ac8b8">${a.msg}</span></div>`).join("")}`;
+  }
+}
+
+function adminSetTrack(i){
+  trackIdx=i;onTrackChange();adminAct("Track → "+TRACKS[i].title);renderAdminContent();
+}
+function doBroadcast(){
+  const v=document.getElementById("bcastInput")?.value?.trim();
+  if(!v)return;
+  appendChat({id:Date.now(),ts:Date.now(),user:"📢 BROADCAST",flag:"📢",msg:v,tier:"VIP",isAI:true});
+  adminAct(`Broadcast: "${v.substring(0,30)}"`);
+  if(document.getElementById("bcastInput"))document.getElementById("bcastInput").value="";
+}
+
+// ════════════════════════════════════════════════════════════
+// §20 · INTERVALS & SIMULATIONS
+// ════════════════════════════════════════════════════════════
+
+// Listener drift
+setInterval(()=>{
+  listeners=Math.max(800,listeners+Math.floor((Math.random()-.35)*14));
+  peakListeners=Math.max(peakListeners,listeners);
+  document.getElementById("listenerCount").textContent=listeners.toLocaleString();
+  document.getElementById("peakStat").textContent=peakListeners>=1000?(peakListeners/1000).toFixed(1)+"K":peakListeners.toString();
+},3000);
+
+// Auto random chat
+setInterval(()=>{
+  if(Math.random()>.52)return;
+  const msg={id:Date.now(),ts:Date.now(),user:USERNAMES[Math.floor(Math.random()*USERNAMES.length)],flag:COUNTRIES[Math.floor(Math.random()*COUNTRIES.length)],msg:RAND_MSGS[Math.floor(Math.random()*RAND_MSGS.length)],tier:["FREE","FREE","PREMIUM","VIP"][Math.floor(Math.random()*4)],isAI:false};
+  appendChat(msg);boostHype(2);
+},8000);
+
+// Auto AI shoutout every 45s
+setInterval(()=>{if(!aiGenerating&&playing)triggerShoutout("shoutout");},45000);
+
+// ════════════════════════════════════════════════════════════
+// §21.5 · LIBRARY UPLOAD SYSTEM (v3.2 — Operator)
+// ════════════════════════════════════════════════════════════
+
+let libUploadQueue = [];    // {file, name, size, status, meta}
+let libPlaylists = [
+  {name:"Morning Vibes", tracks:["t3","t6","t9"]},
+  {name:"Peak Hour",     tracks:["t1","t2","t5","t7"]},
+];
+let libSelectedIdx = null;  // which queue item is being edited
+
+function libDragOver(e){
+  e.preventDefault();
+  document.getElementById("libDropZone").style.borderColor="#00f5c4";
+  document.getElementById("libDropZone").style.background="#00f5c408";
+}
+function libDragLeave(e){
+  document.getElementById("libDropZone").style.borderColor="#00f5c430";
+  document.getElementById("libDropZone").style.background="#010a08";
+}
+function libDrop(e){
+  e.preventDefault();
+  libDragLeave(e);
+  libFilePicked(e.dataTransfer.files);
+}
+
+function libFilePicked(files){
+  if(!files||!files.length)return;
+  const added=[];
+  Array.from(files).forEach(f=>{
+    if(!f.type.startsWith("audio/")&&!/\.(mp3|wav|flac|aac|ogg)$/i.test(f.name)){
+      toast(`Skipped: ${f.name} — not an audio file`,"warn");return;
+    }
+    if(f.size>200*1024*1024){toast(`Skipped: ${f.name} — exceeds 200MB`,"warn");return;}
+    const item={id:"lib_"+Date.now()+"_"+Math.random().toString(36).slice(2),file:f,name:f.name,size:f.size,status:"pending",
+      meta:{title:f.name.replace(/\.[^.]+$/,""),artist:"",genre:"AFROBEATS",bpm:"",energy:"",color:"#00f5c4"}};
+    libUploadQueue.push(item);added.push(item);
+  });
+  if(added.length){toast(`${added.length} file${added.length>1?"s":""} queued`,"success");libRenderQueue();libSelectItem(libUploadQueue.length-1);}
+}
+
+function libImportUrl(){
+  const url=(document.getElementById("libUrlInput")||{}).value?.trim();
+  if(!url){toast("Enter a valid audio URL","warn");return;}
+  try{new URL(url);}catch{toast("Invalid URL format","error");return;}
+  const name=url.split("/").pop().split("?")[0]||"stream";
+  const item={id:"lib_"+Date.now(),file:null,name,url,size:0,status:"pending",
+    meta:{title:name.replace(/\.[^.]+$/,""),artist:"",genre:"AFROBEATS",bpm:"",energy:"",color:"#00f5c4"}};
+  libUploadQueue.push(item);
+  toast(`Imported: ${name}`,"success");
+  libRenderQueue();libSelectItem(libUploadQueue.length-1);
+  if(document.getElementById("libUrlInput"))document.getElementById("libUrlInput").value="";
+}
+
+function libRenderQueue(){
+  const qEl=document.getElementById("libUploadQueue");
+  const countEl=document.getElementById("libQueueCount");
+  if(!qEl)return;
+  if(countEl)countEl.textContent=libUploadQueue.length;
+  if(!libUploadQueue.length){
+    qEl.innerHTML=`<div style="font-size:11px;color:#2a4a40;text-align:center;padding:14px 0">No files queued. Add tracks above to get started.</div>`;
+    const mf=document.getElementById("libMetaForm");if(mf)mf.style.display="none";
+    return;
+  }
+  qEl.innerHTML=libUploadQueue.map((item,i)=>{
+    const kb=item.size?(item.size/1024).toFixed(0)+"KB":"URL";
+    const col=item.status==="done"?"#00f5c4":item.status==="error"?"#ff8aaa":"#ffe04b";
+    const icon=item.status==="done"?"✓":item.status==="error"?"✕":item.status==="uploading"?"⟳":"⏳";
+    return `<div onclick="libSelectItem(${i})" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ${libSelectedIdx===i?"#00f5c430":"#0a2a20"};background:${libSelectedIdx===i?"#00f5c408":"#030f0c"};cursor:pointer;transition:all .15s">
+      <span style="font-size:12px;color:${col}">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#c0d8d0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.meta.title||item.name}</div>
+        <div style="font-size:9px;color:#4a7a70">${kb} · ${item.status.toUpperCase()}</div>
+      </div>
+      <button onclick="event.stopPropagation();libRemoveQueued(${i})" style="padding:3px 8px;border-radius:5px;background:transparent;border:1px solid #1a2a20;color:#4a7a70;font-size:9px">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function libSelectItem(i){
+  libSelectedIdx=i;
+  libRenderQueue();
+  const item=libUploadQueue[i];
+  if(!item)return;
+  const mf=document.getElementById("libMetaForm");
+  if(mf){
+    mf.style.display="block";
+    const fn=document.getElementById("libMetaFileName");if(fn)fn.textContent=item.name;
+    const setVal=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+    setVal("libMetaTitle",item.meta.title||"");
+    setVal("libMetaArtist",item.meta.artist||"");
+    setVal("libMetaGenre",item.meta.genre||"AFROBEATS");
+    setVal("libMetaBpm",item.meta.bpm||"");
+    setVal("libMetaEnergy",item.meta.energy||"");
+    setVal("libMetaColor",item.meta.color||"#00f5c4");
+  }
+}
+
+function libApplyMeta(){
+  if(libSelectedIdx===null||!libUploadQueue[libSelectedIdx])return;
+  const item=libUploadQueue[libSelectedIdx];
+  const getVal=id=>{const el=document.getElementById(id);return el?el.value:"";};
+  item.meta.title=getVal("libMetaTitle")||item.name;
+  item.meta.artist=getVal("libMetaArtist");
+  item.meta.genre=getVal("libMetaGenre");
+  item.meta.bpm=getVal("libMetaBpm");
+  item.meta.energy=getVal("libMetaEnergy");
+  item.meta.color=getVal("libMetaColor");
+  // Apply selected playlists
+  const checkboxes=document.querySelectorAll("#libPlaylistChips input[type=checkbox]");
+  checkboxes.forEach(cb=>{
+    const pi=parseInt(cb.dataset.pl);
+    const tid="upload_"+item.id;
+    if(cb.checked&&libPlaylists[pi]&&!libPlaylists[pi].tracks.includes(tid))
+      libPlaylists[pi].tracks.push(tid);
+  });
+  toast(`Metadata saved: ${item.meta.title}`,"success");
+  libRenderQueue();
+}
+
+async function libUploadSelected(){
+  if(libSelectedIdx===null){toast("Select a queued track first","warn");return;}
+  const item=libUploadQueue[libSelectedIdx];
+  if(!item?.file){toast("Choose a local audio file first","warn");return;}
+  item.status="uploading";libRenderQueue();
+  try{
+    const asset=await NYCEFM_PROD.uploadMedia(item.file,{title:item.meta.title||item.name,artist:item.meta.artist,album:item.meta.album,genre:item.meta.genre});
+    item.status="processing";
+    toast(`✓ ${asset.title} accepted by the media pipeline` ,"success");
+    await NYCEFM_PROD.refresh();
+  }catch(e){
+    item.status="error";
+    toast(e.message||"Media upload failed","error");
+  }finally{libRenderQueue();}
+}
+
+function libRemoveQueued(i){
+  libUploadQueue.splice(i,1);
+  if(libSelectedIdx>=libUploadQueue.length)libSelectedIdx=libUploadQueue.length-1;
+  if(libSelectedIdx<0)libSelectedIdx=null;
+  libRenderQueue();
+  if(libSelectedIdx!==null)libSelectItem(libSelectedIdx);
+  else{const mf=document.getElementById("libMetaForm");if(mf)mf.style.display="none";}
+}
+
+function libRemoveTrack(i){
+  if(!confirm(`Remove "${TRACKS[i]?.title}" from library?`))return;
+  TRACKS.splice(i,1);
+  adminAct("Track removed from library");
+  renderAdminContent();
+  renderQueue();
+}
+
+function libAddPlaylist(){
+  const name=prompt("Playlist name:");
+  if(!name||!name.trim())return;
+  libPlaylists.push({name:name.trim(),tracks:[]});
+  toast(`Playlist "${name.trim()}" created`,"success");
+  libRenderPlaylists();
+  // Refresh playlist chips in meta form if visible
+  const pc=document.getElementById("libPlaylistChips");
+  if(pc){
+    const i=libPlaylists.length-1;
+    const lbl=document.createElement("label");
+    lbl.style.cssText="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#6a9a88;border:1px solid #0a2a20;border-radius:6px;padding:4px 8px;background:#010a08";
+    lbl.innerHTML=`<input type="checkbox" data-pl="${i}" style="accent-color:#00f5c4;cursor:pointer"/> ${libPlaylists[i].name}`;
+    const btn=pc.querySelector("button");
+    if(btn)pc.insertBefore(lbl,btn);else pc.appendChild(lbl);
+  }
+}
+
+function libRenderPlaylists(){
+  const el=document.getElementById("libPlaylistList");
+  const cnt=document.getElementById("libPlCount");
+  if(!el)return;
+  if(cnt)cnt.textContent=libPlaylists.length;
+  if(!libPlaylists.length){
+    el.innerHTML=`<div style="font-size:11px;color:#2a4a40;text-align:center;padding:10px 0">No playlists yet. Create one above.</div>`;
+    return;
+  }
+  el.innerHTML=libPlaylists.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#030f0c;border:1px solid #0a2a20;border-radius:10px">
+      <span style="font-size:14px">📋</span>
+      <div style="flex:1">
+        <div style="font-size:12px;color:#c0d8d0">${p.name}</div>
+        <div style="font-size:9px;color:#4a7a70">${p.tracks.length} tracks</div>
+      </div>
+      <button onclick="libDeletePlaylist(${i})" style="padding:3px 9px;border-radius:6px;background:transparent;border:1px solid #1a2a20;color:#4a7a70;font-size:9px">✕</button>
+    </div>`).join("");
+}
+
+function libDeletePlaylist(i){
+  if(!confirm(`Delete playlist "${libPlaylists[i]?.name}"?`))return;
+  libPlaylists.splice(i,1);
+  toast("Playlist deleted","info");
+  libRenderPlaylists();
+}
+
+
+
+window.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  const auth=Auth.get();
+  const map={
+    "Space":()=>togglePlay(),
+    "KeyM":()=>toggleMute(),
+    "ArrowUp":()=>{const s=document.getElementById("volSlider");s.value=Math.min(100,+s.value+5);setVolume(s.value);},
+    "ArrowDown":()=>{const s=document.getElementById("volSlider");s.value=Math.max(0,+s.value-5);setVolume(s.value);},
+    "ArrowRight":()=>nextTrack(),
+    "ArrowLeft":()=>prevTrack(),
+    "Digit1":()=>{modeId="LIVE_BROADCAST";document.getElementById("modeLabelNP").textContent="LIVE BROADCAST";buildModeChips();},
+    "Digit2":()=>{modeId="VIP_SESSION";document.getElementById("modeLabelNP").textContent="VIP SESSION";buildModeChips();},
+    "Digit3":()=>{modeId="WORKOUT_MODE";document.getElementById("modeLabelNP").textContent="WORKOUT MODE";buildModeChips();},
+    "Digit4":()=>{modeId="LATE_NIGHT";document.getElementById("modeLabelNP").textContent="LATE NIGHT";buildModeChips();},
+    "Digit5":()=>{modeId="PARTY_MODE";document.getElementById("modeLabelNP").textContent="PARTY MODE";buildModeChips();},
+    "KeyA":()=>{if(auth.isAdmin||auth.isOperator)openAdmin();},
+  };
+  if(map[e.code]){e.preventDefault();map[e.code]();}
+});
+
+// ════════════════════════════════════════════════════════════
+// §22 · INIT
+// ════════════════════════════════════════════════════════════
+
+function init(){
+  buildModeChips();
+  buildGenreChips();
+  buildTipButtons();
+  buildAIMeters();
+  updateNowPlaying();
+  renderQueue();
+  renderChat();
+  renderRequests();
+  renderPoll();
+  updateHypeUI();
+  drawGauge();
+  startHypeDecay();
+  startViz();
+  Auth.renderAuth();
+
+  // Generate initial track intro after 2s
+  setTimeout(()=>triggerShoutout("track_intro"),2000);
+  // Update AI meters every 5s
+  setInterval(buildAIMeters,5000);
+}
+
+window.addEventListener("DOMContentLoaded",initProductionIntegration);
+
+window.addEventListener("DOMContentLoaded", initProductionIntegration);
+
+const NYCEFM_PROD = (() => {
+  const cfg = {
+    apiBase: (document.querySelector('meta[name="nycefm-api-base"]')?.content || "").replace(/\/$/,""),
+    streamUrl: document.querySelector('meta[name="nycefm-stream-url"]')?.content || STREAM_URL,
+  };
+  let stationId = null;
+  let controlRevision = 0;
+  let state = null;
+  let session = null;
+  let permissions = new Set();
+  let unsubscribe = null;
+  let connected = false;
+  let lastStateHash = "";
+
+  const request = async (path, options = {}) => {
+    const headers = {...(options.headers || {})};
+    if(options.body && !headers["Content-Type"]) headers["Content-Type"]="application/json";
+    const r = await fetch(`${cfg.apiBase}${path}`, {
+      credentials:"include",
+      ...options,
+      headers
+    });
+    let body=null;
+    try { body = await r.json(); } catch {}
+    if(!r.ok){
+      const e=new Error(body?.error?.message || `Request failed (${r.status})`);
+      e.status=r.status; e.code=body?.error?.code; e.requestId=body?.error?.request_id;
+      throw e;
+    }
+    return body;
+  };
+
+  const setBackendStatus = (ok, label) => {
+    connected=ok;
+    const el=document.getElementById("backendStatusBadge");
+    if(!el)return;
+    el.textContent=`BACKEND · ${label}`;
+    el.style.color=ok?"#00f5c4":"#ffe04b";
+    el.style.background=ok?"#00f5c415":"#ffe04b12";
+    el.style.borderColor=ok?"#00f5c430":"#ffe04b30";
+  };
+
+  const has = p => permissions.has(p);
+
+  const duration = ms => {
+    const n=Number(ms);
+    if(!Number.isFinite(n)||n<=0)return "—";
+    const s=Math.round(n/1000), m=Math.floor(s/60), sec=String(s%60).padStart(2,"0");
+    return `${m}:${sec}`;
+  };
+
+  const assetToTrack = (x, i=0) => ({
+    id:x.media_asset_id || x.id || `remote-${i}`,
+    queueId:x.id,
+    title:x.title || "Untitled",
+    artist:x.artist || "Unknown Artist",
+    genre:(x.genre || "MUSIC").toUpperCase(),
+    bpm:Number(x.metadata?.bpm || x.bpm || 0),
+    energy:Number(x.metadata?.energy || x.energy || 0),
+    artColor:x.metadata?.artColor || x.artColor || "#00f5c4",
+    duration:duration(x.duration_ms),
+    durationMs:Number(x.duration_ms||0)
+  });
+
+  function applyState(payload, silent=false){
+    if(!payload)return;
+    state=payload;
+    stationId=payload.stationId || stationId;
+    controlRevision=Number(payload.control?.control_revision ?? payload.nowPlaying?.control_revision ?? controlRevision ?? 0);
+    const np=payload.nowPlaying || {};
+    const remoteTracks=(payload.queue||[]).map(assetToTrack);
+
+    // Keep the visual reference track list, but make the current broadcast state authoritative.
+    const current = np.media_asset_id ? assetToTrack(np, -1) : null;
+    const combined = current ? [current, ...remoteTracks.filter(q=>q.id!==current.id)] : remoteTracks;
+    if(combined.length){
+      TRACKS.splice(0, TRACKS.length, ...combined);
+      trackIdx=0;
+    }
+    broadcastPlaying = np.state==="playing";
+    loading = false;
+
+    const title=np.title || current?.title || "NYCE FM 36.9";
+    const artist=np.artist || current?.artist || "DJ NYCE";
+    const titleEl=document.getElementById("trackTitle");
+    const artistEl=document.getElementById("trackArtist");
+    if(titleEl)titleEl.textContent=title;
+    if(artistEl){artistEl.textContent=artist;artistEl.style.color=current?.artColor || "#00f5c4";}
+    const mode=String(np.transition_mode || "auto").toUpperCase();
+    const modeEl=document.getElementById("modeLabelNP");
+    if(modeEl)modeEl.textContent=`LIVE BROADCAST · ${mode}`;
+    updateOrb(); updatePlayBtn(); updateStream(); renderQueue();
+
+    const qc=document.getElementById("queueCount");
+    if(qc)qc.textContent=String((payload.queue||[]).length);
+    if(!silent && payload.control?.control_revision != null) {
+      const rev=Number(payload.control.control_revision);
+      if(rev!==controlRevision) controlRevision=rev;
+    }
+  }
+
+  function renderRemoteQueue(){
+    if(!state)return;
+    renderQueue();
+  }
+
+  async function refresh(){
+    try{
+      const me=await request("/api/auth/me");
+      session=me; permissions=new Set(me.permissions||[]);
+      renderAuth();
+      const payload=await request(`/api/broadcast/state${stationId?`?stationId=${encodeURIComponent(stationId)}`:""}`);
+      applyState(payload);
+      setBackendStatus(true,"ONLINE");
+      return payload;
+    }catch(e){
+      setBackendStatus(false,e.status===401?"AUTH REQUIRED":"OFFLINE");
+      renderAuth();
+      if(e.status!==401 && !silentErrorOnce){
+        silentErrorOnce=true;
+        toast("NYCE FM backend unavailable — UI is in safe offline mode.","warn",5000);
+      }
+      return null;
+    }
+  }
+  let silentErrorOnce=false;
+
+  function renderAuth(){
+    const el=document.getElementById("authControls");
+    if(!el)return;
+    if(session){
+      const role=(session.roles||[]).join(" / ") || "AUTHENTICATED";
+      el.innerHTML=`
+        <div style="text-align:right">
+          <div style="font-size:9px;color:#00f5c4;letter-spacing:.08em">${escapeHtml(role)}</div>
+          <div style="font-size:9px;color:#4a7a70">${escapeHtml(session.user?.displayName || session.email || "Operator")}</div>
+        </div>
+        <button onclick="NYCEFM_PROD.logout()" style="padding:7px 12px;border-radius:8px;background:transparent;border:1px solid #2a4a40;color:#4a7a70;font-size:10px">LOG OUT</button>`;
+    } else {
+      el.innerHTML=`<button onclick="NYCEFM_PROD.login()" style="padding:7px 14px;border-radius:8px;background:#00f5c415;border:1px solid #00f5c430;color:#00f5c4;font-size:10px;font-weight:700">▶ OPERATOR LOGIN</button>`;
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  async function login(){
+    const email=prompt("NYCE FM operator email:");
+    if(!email)return;
+    const password=prompt("Password:");
+    if(!password)return;
+    try{
+      const res=await request("/api/auth/login",{method:"POST",body:JSON.stringify({email,password})});
+      session=res.user ? {user:res.user,roles:res.user.roles||[]} : await request("/api/auth/me");
+      await refresh();
+      toast("Authenticated with NYCE FM.","success");
+    }catch(e){toast(e.message||"Login failed","error");}
+  }
+
+  async function logout(){
+    try{await request("/api/auth/logout",{method:"POST"});}catch{}
+    session=null; permissions.clear(); renderAuth(); toast("Signed out.","info");
+  }
+
+  async function control(action, reason="Dashboard control"){
+    if(!has("broadcast.control")){
+      toast("Broadcast control permission required.","warn"); return;
+    }
+    try{
+      const res=await request("/api/broadcast/control",{
+        method:"POST",
+        body:JSON.stringify({stationId,action,expectedControlRevision:controlRevision,reason})
+      });
+      const returned=res?.nowPlaying?.control_revision ?? res?.nowPlaying?.controlRevision;
+      if(returned!=null)controlRevision=Number(returned);
+      if(res?.nowPlaying) applyState({...state,nowPlaying:res.nowPlaying,control:{...(state?.control||{}),control_revision:controlRevision}},true);
+      toast(`Broadcast ${action.replace("_"," ")} accepted.`,"success");
+      return res;
+    }catch(e){
+      if(e.code==="CONTROL_REVISION_CONFLICT" || e.status===409){
+        toast("Broadcast state changed elsewhere. Resynchronizing…","warn");
+        await refresh();
+      }else toast(e.message||"Broadcast control failed","error");
+      throw e;
+    }
+  }
+
+  async function aiActions(){
+    if(!has("ai.read"))return [];
+    try{
+      const r=await request(`/api/ai/actions${stationId?`?stationId=${encodeURIComponent(stationId)}`:""}`);
+      return r.actions||[];
+    }catch(e){toast(e.message,"error");return [];}
+  }
+
+  async function executeAiAction(actionId){
+    if(!has("ai.control")){toast("AI control permission required.","warn");return;}
+    try{
+      const r=await request(`/api/ai/actions/${encodeURIComponent(actionId)}/execute`,{method:"POST",body:"{}"});
+      toast("AI action executed and audited.","success");
+      return r;
+    }catch(e){toast(e.message||"AI action failed","error");throw e;}
+  }
+
+  async function uploadMedia(file, meta){
+    if(!has("library.upload")) throw Object.assign(new Error("Library upload permission required."),{code:"FORBIDDEN",status:403});
+    const headers={"Content-Type":file.type,"x-media-title":meta.title,"x-media-artist":meta.artist||"","x-media-album":meta.album||"","x-media-genre":meta.genre||""};
+    const response=await fetch(`${cfg.apiBase}/api/media/upload`,{method:"POST",headers,body:file,credentials:"include"});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw Object.assign(new Error(data?.error?.message||"Upload failed"),{status:response.status,code:data?.error?.code});
+    return data.asset;
+  }
+
+  function subscribe(){
+    if(unsubscribe || !has("broadcast.read"))return;
+    const url=`${cfg.apiBase}/api/broadcast/control-stream${stationId?`?stationId=${encodeURIComponent(stationId)}`:""}`;
+    const es=new EventSource(url,{withCredentials:true});
+    es.addEventListener("broadcast",e=>{
+      try{
+        const payload=JSON.parse(e.data);
+        const h=JSON.stringify(payload);
+        if(h!==lastStateHash){lastStateHash=h;applyState(payload,true);}
+        setBackendStatus(true,"LIVE");
+      }catch{}
+    });
+    es.onerror=()=>{
+      setBackendStatus(false,"RECONNECTING");
+      es.close(); unsubscribe=null;
+      setTimeout(()=>{if(session)subscribe();},3000);
+    };
+    unsubscribe=()=>{es.close();unsubscribe=null;};
+  }
+
+  return {request,refresh,login,logout,control,aiActions,executeAiAction,uploadMedia,subscribe,renderAuth,has,
+    get state(){return state}, get stationId(){return stationId}, get controlRevision(){return controlRevision},
+    config:cfg};
+})();
+
+async function initProductionIntegration(){
+  // Disable the demo-only local session immediately. Production auth is cookie-backed.
+  try{localStorage.removeItem("nycefm_v31_session");}catch{}
+  Auth._login = NYCEFM_PROD.login;
+  Auth._logout = NYCEFM_PROD.logout;
+  Auth.get = () => ({
+    isAuthenticated:!!NYCEFM_PROD.state,
+    user:NYCEFM_PROD.state?.user || null,
+    role:"production",
+    isAdmin:NYCEFM_PROD.has("broadcast.control"),
+    isOperator:NYCEFM_PROD.has("broadcast.control")
+  });
+  Auth.renderAuth = NYCEFM_PROD.renderAuth;
+
+  // Replace demo AI provider calls. The browser never receives an Anthropic key.
+  AIRouter.generate = async () => ({
+    response:"AI generation is governed by the NYCE FM backend. Run an approved AI action from Command Center.",
+    fallback:true,genMs:0,modMs:0,totalMs:0
+  });
+
+  StripeService.tip = async({amountCents})=>{
+    if(!NYCEFM_PROD.state){return{success:false,error:"Sign in before tipping."};}
+    try{const r=await NYCEFM_PROD.request("/api/payments/checkout",{method:"POST",body:JSON.stringify({kind:"tip",amountCents})}); if(r.checkoutUrl) window.location.href=r.checkoutUrl; return{success:true};}
+    catch(e){return{success:false,error:e.message||"Payment checkout unavailable."};}
+  };
+  StripeService.subscribe = async(plan)=>{
+    if(!NYCEFM_PROD.state){return{success:false,error:"Sign in before subscribing."};}
+    try{const r=await NYCEFM_PROD.request("/api/payments/checkout",{method:"POST",body:JSON.stringify({kind:"subscription",plan})}); if(r.checkoutUrl) window.location.href=r.checkoutUrl; return{success:true};}
+    catch(e){return{success:false,error:e.message||"Subscription checkout unavailable."};}
+  };
+
+  // Audio remains a listener playback client; broadcast authority stays server-side.
+  const originalToggle=togglePlay;
+  togglePlay=async function(){
+    if(playing){audioEl.pause();return;}
+    initWebAudio();
+    if(webAudioCtx?.state==="suspended")await webAudioCtx.resume();
+    audioEl.src=NYCEFM_PROD.config.streamUrl;
+    audioEl.volume=muted?0:volume;
+    loading=true;updatePlayBtn();
+    try{await audioEl.play();playing=true;loading=false;updatePlayBtn();updateOrb();updateStream();}
+    catch{loading=false;showError("Playback was blocked or the stream is unavailable.");}
+  };
+
+  const originalNext=nextTrack, originalPrev=prevTrack;
+  nextTrack=()=>NYCEFM_PROD.control("next","Listener/operator requested next track");
+  prevTrack=()=>NYCEFM_PROD.control("skip","Listener/operator requested previous/skip");
+
+  // Make admin broadcast controls authoritative and fenced.
+  const originalRenderAdmin=renderAdminContent;
+  renderAdminContent=function(){
+    originalRenderAdmin();
+    if(adminTab!=="broadcast")return;
+    const host=document.getElementById("adminContent");
+    if(!host)return;
+    const panel=document.createElement("div");
+    panel.style.cssText="margin-bottom:14px;padding:14px;background:#010a08;border:1px solid #00f5c430;border-radius:12px";
+    panel.innerHTML=`
+      <div style="font-size:10px;color:#00f5c4;letter-spacing:.18em;margin-bottom:10px">◈ AUTHORITATIVE SERVER CONTROL</div>
+      <div style="font-size:9px;color:#4a7a70;margin-bottom:10px">CONTROL REVISION: <span id="prodControlRevision">${NYCEFM_PROD.controlRevision}</span> · FENCED CONCURRENCY</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px">
+        ${["pause","resume","next","stop","emergency_stop"].map(a=>`<button data-prod-control="${a}" style="padding:9px;border-radius:8px;background:#00f5c410;border:1px solid #00f5c430;color:#00f5c4;font-size:10px;letter-spacing:.08em">${a.replace("_"," ").toUpperCase()}</button>`).join("")}
+      </div>`;
+    panel.querySelectorAll("[data-prod-control]").forEach(btn=>{
+      btn.onclick=async()=>{
+        btn.disabled=true;
+        try{await NYCEFM_PROD.control(btn.dataset.prodControl,"Operator command center control");}
+        finally{btn.disabled=false;const r=document.getElementById("prodControlRevision");if(r)r.textContent=NYCEFM_PROD.controlRevision;}
+      };
+    });
+    host.prepend(panel);
+  };
+
+  await NYCEFM_PROD.refresh();
+  if(NYCEFM_PROD.state)NYCEFM_PROD.subscribe();
+
+  // Periodic state refresh is a safety net for disconnected SSE clients.
+  setInterval(()=>{if(NYCEFM_PROD.state)NYCEFM_PROD.refresh().then(()=>NYCEFM_PROD.subscribe());},30000);
+}
+
+</script>
+</body>
+</html>
