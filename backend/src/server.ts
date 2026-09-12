@@ -3,6 +3,7 @@ import { startBroadcastWorker } from "./services/broadcastWorker.js";
 import { startMediaProcessor, stopMediaProcessor } from "./services/mediaProcessor.js";
 import { stopBroadcastWorker } from "./services/broadcastWorker.js";
 import { startAiWorker, stopAiWorker } from "./services/aiWorker.js";
+import { pool } from "./db/pool.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 

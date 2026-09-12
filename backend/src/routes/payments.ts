@@ -26,7 +26,7 @@ async function stripeRequest(path: string, params: URLSearchParams) {
     body: params,
   });
   const payload = await response.json() as Record<string, unknown>;
-  if (!response.ok) throw new Error(`STRIPE_ERROR_${response.status}:${String(payload.error && (payload.error as { message?: string }).message ?? "request failed")}`);
+  if (!response.ok) throw new Error(`STRIPE_ERROR_${response.status}:${String(payload.error ? ((payload.error as { message?: string }).message ?? "request failed") : "request failed")}`);
   return payload;
 }
 

@@ -139,7 +139,7 @@ export async function approveAndExecuteAction(input: { actionId: string; actorId
     await client.query(`UPDATE ai_actions SET status='approved',approved_by=$2 WHERE id=$1`, [action.id,input.actorId]);
     await client.query("COMMIT");
     let result: unknown = null;
-    if (action.action_type === "queue_track") result = await enqueueTrack({ stationId: action.station_id, mediaAssetId: action.payload.mediaAssetId, actorId: input.actorId, source: "ai", correlationId: input.correlationId });
+    if (action.action_type === "queue_track") { const mediaAssetId = action.payload.mediaAssetId; if (typeof mediaAssetId !== "string") throw new Error("AI_MEDIA_ASSET_REQUIRED"); result = await enqueueTrack({ stationId: action.station_id, mediaAssetId, actorId: input.actorId, source: "ai", correlationId: input.correlationId }); }
     else if (action.action_type === "speak") {
       const v = await pool.query(`INSERT INTO ai_voice_segments(station_id,kind,text,status,created_by) VALUES($1,'link',$2,'approved',$3) RETURNING *`, [action.station_id,String(action.payload.text),input.actorId]);
       result = v.rows[0];
