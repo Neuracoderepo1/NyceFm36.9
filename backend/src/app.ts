@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express, { type NextFunction, type Request, type Response } from "express";
+import "express-async-errors";
 import { ZodError } from "zod";
 import helmet from "helmet";
 import cors from "cors";
