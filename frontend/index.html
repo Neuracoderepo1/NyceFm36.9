@@ -581,9 +581,6 @@ const TIERS={
   VIP:     {name:"VIP",    color:"#ffe04b",price:"$19.99",features:["AI shoutouts","Priority queue","VIP badge","Private sessions"]},
 };
 const POLL_OPTS=["Afrobeats 🌍","Amapiano 🎹","Dancehall 🇯🇲","Hip-Hop 🎤"];
-const COUNTRIES=["🇳🇬","🇬🇭","🇺🇸","🇿🇦","🇬🇧","🇯🇲","🇨🇦","🇫🇷","🇧🇷","🇸🇳","🇰🇪","🇯🇵","🇦🇺","🇹🇹","🇮🇪"];
-const USERNAMES=["WavyKing","GoldMind","NightFreq","SolarPunk","VibeCheck","DropZone","BeatHunter","FluxMode","KingCobra","NeonSoul","AfroQueen","DubMaster"];
-const RAND_MSGS=["This track goes HARD 🔥","DJ NYCE killing it!","Clean transition 🎚️","Best internet radio PERIOD","Can't stop listening 📻","NYCE FM WORLDWIDE 🌍","This mix is EVERYTHING 🎵","Play some Amapiano please! 🙏","Nyce FM is the only station fr","That bass drop though 😤"];
 
 // ════════════════════════════════════════════════════════════
 // §7 · STATE
@@ -592,14 +589,9 @@ const RAND_MSGS=["This track goes HARD 🔥","DJ NYCE killing it!","Clean transi
 let playing=false,broadcastPlaying=false,loading=false,muted=false,volume=0.78;
 let trackIdx=0,modeId="LIVE_BROADCAST",genreFilter="ALL",currentTier="FREE";
 let hype=42,hypeDecayIv=null,hypeMode=HypeEngine.DEF;
-let chatMessages=[
-  {id:1,ts:Date.now()-300000,user:"FlexKing99",flag:"🇬🇭",msg:"Nyce FM is the ONLY station 🔥",tier:"PREMIUM",isAI:false},
-  {id:2,ts:Date.now()-240000,user:"QueenB_ATL",flag:"🇺🇸",msg:"DJ NYCE doing it BIG tonight!",tier:"VIP",isAI:false},
-  {id:3,ts:Date.now()-150000,user:"SkyHighDan",flag:"🇳🇬",msg:"Play some Afrobeats next 🙏",tier:"FREE",isAI:false},
-  {id:4,ts:Date.now()-60000, user:"AI DJ NYCE",flag:"📻",msg:"Nyce FM 36.9 broadcasting LIVE to 42 countries. DJ NYCE AI in the booth. Let's GO! 🎚️",tier:"VIP",isAI:true},
-];
+let chatMessages=[];
 let chatTab="chat",pollVoted=null,pollVotes=[142,98,67,45];
-let listeners=3847,peakListeners=5240,liked={},requested={};
+let listeners=0,peakListeners=0,liked={},requested={};
 let adminTab="queue",adminLog=[],aiGenerating=false;
 
 // KPI tracking (v3.1 — investor-grade metrics)
@@ -876,19 +868,28 @@ function appendChat(msg){
   if(chatTab==="chat")renderChat();
 }
 
+function escapeHtml(s){
+  return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
 function renderChat(){
   const scroll=document.getElementById("chatScroll");scroll.innerHTML="";
+  if(!chatMessages.length){
+    scroll.innerHTML=`<div style="padding:20px 12px;font-size:12px;color:#3a5a50;text-align:center">No messages yet — say something 👋</div>`;
+    return;
+  }
   chatMessages.forEach(m=>{
     const div=document.createElement("div");div.className="chat-msg";
     const time=new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    const flag=m.flag??"🌍",tier=m.tier??"FREE",isAI=!!m.isAI,user=m.user??"Listener";
     div.innerHTML=`
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
-        <span style="font-size:13px">${m.flag}</span>
-        <span style="font-size:12px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em;color:${m.isAI?"#ffe04b":"#00f5c4"}">${m.user}</span>
-        ${tierBadge(m.tier)}
+        <span style="font-size:13px">${flag}</span>
+        <span style="font-size:12px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em;color:${isAI?"#ffe04b":"#00f5c4"}">${escapeHtml(user)}</span>
+        ${tierBadge(tier)}
         <span style="font-size:9px;color:#2a4a40;margin-left:auto">${time}</span>
       </div>
-      <div style="font-size:13px;color:${m.isAI?"#d4edba":"#9ac8b8"};line-height:1.5;font-style:${m.isAI?"italic":"normal"};padding-left:20px">${m.msg}</div>`;
+      <div style="font-size:13px;color:${isAI?"#d4edba":"#9ac8b8"};line-height:1.5;font-style:${isAI?"italic":"normal"};padding-left:20px">${escapeHtml(m.msg)}</div>`;
     scroll.appendChild(div);
   });
   scroll.scrollTop=scroll.scrollHeight;
@@ -896,15 +897,16 @@ function renderChat(){
 
 async function sendChat(){
   const inp=document.getElementById("chatInput"),txt=inp.value.trim();
-  if(!txt||aiGenerating)return;
+  if(!txt||typeof AudienceSync==="undefined"||!AudienceSync.ready)return;
   inp.value="";
-  appendChat({id:Date.now(),ts:Date.now(),user:"You",flag:"🌍",msg:txt,tier:currentTier,isAI:false});
   boostHype(5);
-  document.getElementById("typingIndicator").style.display="block";
-  const t=TRACKS[trackIdx],m=ModeCtrl.get(modeId),lv=HypeEngine.level(hype);
-  const res=await AIRouter.generate("chat_reply",{userMsg:txt,track:t.title,artist:t.artist,listeners,modeName:m.label,mode:m,hypeLevel:lv.label});
-  document.getElementById("typingIndicator").style.display="none";
-  appendChat({id:Date.now()+1,ts:Date.now(),user:"AI DJ NYCE",flag:"📻",msg:res.response,tier:"VIP",isAI:true});
+  try{
+    await AudienceSync.postChat(txt);
+    // No local optimistic append: the SSE snapshot broadcasts the stored message
+    // back to everyone (including this sender) within ~5s, avoiding duplicate/out-of-order entries.
+  }catch(e){
+    toast(e.message||"Message failed to send.","error",3000);
+  }
 }
 
 function switchChatTab(tab,btn){
@@ -1432,26 +1434,14 @@ function doBroadcast(){
 }
 
 // ════════════════════════════════════════════════════════════
-// §20 · INTERVALS & SIMULATIONS
+// §20 · LIVE AUDIENCE SYNC (real backend, replaces prior simulation)
 // ════════════════════════════════════════════════════════════
-
-// Listener drift
-setInterval(()=>{
-  listeners=Math.max(800,listeners+Math.floor((Math.random()-.35)*14));
-  peakListeners=Math.max(peakListeners,listeners);
-  document.getElementById("listenerCount").textContent=listeners.toLocaleString();
-  document.getElementById("peakStat").textContent=peakListeners>=1000?(peakListeners/1000).toFixed(1)+"K":peakListeners.toString();
-},3000);
-
-// Auto random chat
-setInterval(()=>{
-  if(Math.random()>.52)return;
-  const msg={id:Date.now(),ts:Date.now(),user:USERNAMES[Math.floor(Math.random()*USERNAMES.length)],flag:COUNTRIES[Math.floor(Math.random()*COUNTRIES.length)],msg:RAND_MSGS[Math.floor(Math.random()*RAND_MSGS.length)],tier:["FREE","FREE","PREMIUM","VIP"][Math.floor(Math.random()*4)],isAI:false};
-  appendChat(msg);boostHype(2);
-},8000);
-
-// Auto AI shoutout every 45s
-setInterval(()=>{if(!aiGenerating&&playing)triggerShoutout("shoutout");},45000);
+// Listener count and chat are no longer randomly generated in the browser.
+// AudienceSync (defined in §22, wired up from initProductionIntegration)
+// drives `listeners`/`chatMessages` from the real /api/audience/* backend.
+// Manual "SHOUTOUT" / "TRACK INTRO" buttons still call triggerShoutout(),
+// which currently only hits the disabled client-side AIRouter stub — that
+// still needs to be re-pointed at POST /api/ai/decide as a follow-up.
 
 // ════════════════════════════════════════════════════════════
 // §21.5 · LIBRARY UPLOAD SYSTEM (v3.2 — Operator)
@@ -1942,6 +1932,58 @@ const NYCEFM_PROD = (() => {
     config:cfg};
 })();
 
+// ════════════════════════════════════════════════════════════
+// §22 · AUDIENCE SYNC (real listener count + chat, replaces §20 simulation)
+// ════════════════════════════════════════════════════════════
+function getAnonId(){
+  try{
+    let id=localStorage.getItem("nycefm_anon_id");
+    if(!id){
+      id=(crypto.randomUUID?crypto.randomUUID():("anon-"+Date.now()+"-"+Math.random().toString(36).slice(2)));
+      localStorage.setItem("nycefm_anon_id",id);
+    }
+    return id;
+  }catch{return null;} // private-browsing / storage-denied fallback: still works, just uncounted across reloads
+}
+
+const AudienceSync=(()=>{
+  let ready=false,es=null,heartbeatIv=null;
+
+  function applySnapshot(snap){
+    if(typeof snap.listeners==="number"){
+      listeners=snap.listeners;
+      peakListeners=Math.max(peakListeners,listeners);
+      const lc=document.getElementById("listenerCount");if(lc)lc.textContent=listeners.toLocaleString();
+      const ps=document.getElementById("peakStat");if(ps)ps.textContent=peakListeners>=1000?(peakListeners/1000).toFixed(1)+"K":peakListeners.toString();
+    }
+    if(Array.isArray(snap.messages)){
+      chatMessages=snap.messages.map(m=>({id:m.id,ts:new Date(m.created_at).getTime(),user:m.display_name||"Listener",msg:m.body,flag:"🌍",tier:"FREE",isAI:false}));
+      if(chatTab==="chat")renderChat();
+    }
+  }
+
+  async function postChat(body){
+    const sid=NYCEFM_PROD.stationId;
+    await NYCEFM_PROD.request("/api/audience/chat",{method:"POST",body:JSON.stringify({stationId:sid||undefined,anonymousId:getAnonId()||undefined,body})});
+  }
+
+  function start(){
+    if(ready)return;
+    const sid=NYCEFM_PROD.stationId;
+    const url=`${NYCEFM_PROD.config.apiBase}/api/audience/events/stream${sid?`?stationId=${encodeURIComponent(sid)}`:""}`;
+    es=new EventSource(url,{withCredentials:true});
+    es.addEventListener("audience.snapshot",(e)=>{try{applySnapshot(JSON.parse(e.data));}catch{}});
+    es.onerror=()=>{}; // native EventSource auto-reconnects; a real reconnect indicator is a nice-to-have, not required for correctness
+    ready=true;
+
+    const beat=()=>NYCEFM_PROD.request("/api/audience/presence",{method:"POST",body:JSON.stringify({stationId:sid||undefined,anonymousId:getAnonId()||undefined})}).catch(()=>{});
+    beat();
+    heartbeatIv=setInterval(beat,40000); // well under the 90s server-side presence window
+  }
+
+  return {start,postChat,get ready(){return ready;}};
+})();
+
 async function initProductionIntegration(){
   // Disable the demo-only local session immediately. Production auth is cookie-backed.
   try{localStorage.removeItem("nycefm_v31_session");}catch{}
@@ -2017,6 +2059,7 @@ async function initProductionIntegration(){
 
   await NYCEFM_PROD.refresh();
   if(NYCEFM_PROD.state)NYCEFM_PROD.subscribe();
+  AudienceSync.start();
 
   // Periodic state refresh is a safety net for disconnected SSE clients.
   setInterval(()=>{if(NYCEFM_PROD.state)NYCEFM_PROD.refresh().then(()=>NYCEFM_PROD.subscribe());},30000);
