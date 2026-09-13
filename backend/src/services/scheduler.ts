@@ -5,7 +5,6 @@ export async function materializeSchedule(stationId: string, horizonMinutes = 30
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`schedule:${stationId}`]);
     const schedules = await client.query(`
       SELECT s.*, p.name AS playlist_name
       FROM broadcast_schedules s
@@ -22,7 +21,10 @@ export async function materializeSchedule(stationId: string, horizonMinutes = 30
         const next = await client.query(`SELECT COALESCE(MAX(scheduled_for), now()) AS at FROM broadcast_queue WHERE station_id=$1 AND status='queued'`,[stationId]);
         const at = new Date(next.rows[0].at);
         const scheduled = new Date(Math.max(Date.now(), at.getTime()+1000));
-        await client.query(`INSERT INTO broadcast_queue(station_id,media_asset_id,source,position,status,scheduled_for) SELECT $1,$2,'playlist',COALESCE(MAX(position)+1,0),'queued',$3 FROM broadcast_queue WHERE station_id=$1 AND status='queued'`,[stationId,item.media_asset_id,scheduled]);
+        await client.query(
+          `SELECT * FROM public.enqueue_queue_item($1,$2,'playlist',NULL,$3)`,
+          [stationId,item.media_asset_id,scheduled]
+        );
         added++;
         if (added >= 20) break;
       }

@@ -23,73 +23,30 @@ export async function getNowPlaying(stationId: string) {
 export async function startBroadcast(input: {
   stationId: string; actorId: string; mode: "operator" | "scheduled" | "ai" | "automation"; correlationId: string;
 }) {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const existing = await client.query<{ id: string }>(
-      `SELECT id FROM broadcast_sessions WHERE station_id = $1 AND status = 'active' FOR UPDATE`,
-      [input.stationId]
-    );
-    if (existing.rows[0]) return existing.rows[0].id;
-    const result = await client.query<{ id: string }>(
-      `INSERT INTO broadcast_sessions (station_id, started_by, mode) VALUES ($1,$2,$3) RETURNING id`,
-      [input.stationId, input.actorId, input.mode]
-    );
-    await client.query(
-      `INSERT INTO now_playing (station_id, broadcast_session_id, state, revision)
-       VALUES ($1,$2,'idle',1)
-       ON CONFLICT (station_id) DO UPDATE SET broadcast_session_id = EXCLUDED.broadcast_session_id,
-         state = 'idle', revision = now_playing.revision + 1, updated_at = now()`,
-      [input.stationId, result.rows[0].id]
-    );
-    await client.query("COMMIT");
-    await recordAuditEvent({ actorId: input.actorId, action: "BROADCAST_STARTED", resourceType: "broadcast_session", resourceId: result.rows[0].id, afterState: { stationId: input.stationId, mode: input.mode }, correlationId: input.correlationId });
-    return result.rows[0].id;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally { client.release(); }
+  const { rows } = await pool.query<{ id: string }>(
+    `SELECT id FROM public.start_broadcast_session($1,$2,$3)`,
+    [input.stationId, input.actorId, input.mode]
+  );
+  if (!rows[0]) throw new Error("Unable to start broadcast session");
+  await recordAuditEvent({ actorId: input.actorId, action: "BROADCAST_STARTED", resourceType: "broadcast_session", resourceId: rows[0].id, afterState: { stationId: input.stationId, mode: input.mode }, correlationId: input.correlationId });
+  return rows[0].id;
 }
 
 export async function stopBroadcast(input: { stationId: string; actorId: string; correlationId: string }) {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const result = await client.query<{ id: string }>(
-      `UPDATE broadcast_sessions SET status='stopped', ended_at=now()
-       WHERE station_id=$1 AND status='active' RETURNING id`, [input.stationId]
-    );
-    await client.query(
-      `INSERT INTO now_playing (station_id,state,revision) VALUES ($1,'stopped',1)
-       ON CONFLICT (station_id) DO UPDATE SET state='stopped', queue_item_id=NULL, media_asset_id=NULL,
-       broadcast_session_id=NULL, revision=now_playing.revision+1, updated_at=now()`, [input.stationId]
-    );
-    await client.query("COMMIT");
-    if (result.rows[0]) await recordAuditEvent({ actorId: input.actorId, action: "BROADCAST_STOPPED", resourceType: "broadcast_session", resourceId: result.rows[0].id, correlationId: input.correlationId });
-    return result.rows[0]?.id ?? null;
-  } catch (err) { await client.query("ROLLBACK"); throw err; }
-  finally { client.release(); }
+  const { rows } = await pool.query<{ id: string | null }>(
+    `SELECT id FROM public.stop_broadcast_session($1)`,
+    [input.stationId]
+  );
+  if (rows[0]?.id) await recordAuditEvent({ actorId: input.actorId, action: "BROADCAST_STOPPED", resourceType: "broadcast_session", resourceId: rows[0].id, correlationId: input.correlationId });
+  return rows[0]?.id ?? null;
 }
 
-export async function enqueueTrack(input: { stationId: string; mediaAssetId: string; actorId: string | null; source: "playlist" | "dj" | "producer" | "ai" | "system"; correlationId: string }) {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    // Serialize queue-position allocation per station to prevent duplicate positions under concurrency.
-    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [input.stationId]);
-    const result = await client.query<{ id: string; position: number }>(
-      `INSERT INTO broadcast_queue (station_id, media_asset_id, source, requested_by, position)
-       SELECT $1,$2,$3,$4,COALESCE(MAX(position)+1,0)
-       FROM broadcast_queue WHERE station_id=$1 AND status='queued'
-       RETURNING id, position`,
-      [input.stationId, input.mediaAssetId, input.source, input.actorId]
-    );
-    if (!result.rows[0]) throw new Error("Unable to enqueue track");
-    await client.query("COMMIT");
-    await recordAuditEvent({ actorId: input.actorId, action: "QUEUE_ITEM_ADDED", resourceType: "broadcast_queue", resourceId: result.rows[0].id, afterState: { mediaAssetId: input.mediaAssetId, source: input.source, position: result.rows[0].position }, correlationId: input.correlationId });
-    return result.rows[0];
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally { client.release(); }
+export async function enqueueTrack(input: { stationId: string; mediaAssetId: string; actorId: string | null; source: "playlist" | "dj" | "producer" | "ai" | "system"; scheduledFor?: string; correlationId: string }) {
+  const { rows } = await pool.query<{ id: string; position: number; scheduled_for: string | null }>(
+    `SELECT id, position, scheduled_for FROM public.enqueue_queue_item($1,$2,$3,$4,$5)`,
+    [input.stationId, input.mediaAssetId, input.source, input.actorId, input.scheduledFor ?? null]
+  );
+  if (!rows[0]) throw new Error("Unable to enqueue track");
+  await recordAuditEvent({ actorId: input.actorId, action: "QUEUE_ITEM_ADDED", resourceType: "broadcast_queue", resourceId: rows[0].id, afterState: { mediaAssetId: input.mediaAssetId, source: input.source, position: rows[0].position, scheduledFor: rows[0].scheduled_for }, correlationId: input.correlationId });
+  return rows[0];
 }

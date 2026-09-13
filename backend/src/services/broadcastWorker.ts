@@ -62,7 +62,20 @@ async function tick() {
     if (!claimed.rows[0]) { await client.query("ROLLBACK"); return; }
     const q=claimed.rows[0];
     const asset = await client.query(`SELECT storage_key,status FROM media_assets WHERE id=$1 AND status='ready'`, [q.media_asset_id]);
-    if (!asset.rows[0]) { await client.query(`UPDATE broadcast_queue SET status='failed',failed_reason='MEDIA_NOT_READY',ended_at=now() WHERE id=$1`, [q.id]); await client.query("COMMIT"); return; }
+    if (!asset.rows[0]) {
+      await client.query(
+        `SELECT * FROM public.finalize_queue_item($1,$2,'failed',$3,'track_failed',$4,NULL,NULL,$5)`,
+        [
+          stationId,
+          q.id,
+          "MEDIA_NOT_READY",
+          JSON.stringify({ media_asset_id: q.media_asset_id, reason: "MEDIA_NOT_READY" }),
+          JSON.stringify({})
+        ]
+      );
+      await client.query("COMMIT");
+      return;
+    }
     await client.query(`SELECT * FROM public.advance_now_playing($1,$2,$3,$4,$5)`,[stationId,q.id,q.media_asset_id,active.rows[0].id,'auto']);
     await client.query(`INSERT INTO stream_events(station_id,event_type,queue_item_id,payload) VALUES($1,'track_started',$2,$3)`,[stationId,q.id,{media_asset_id:q.media_asset_id}]);
     await client.query("COMMIT");
@@ -90,12 +103,22 @@ async function playTrack(stationId:string,queueId:string,mediaAssetId:string,sto
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
-    let status:string="played"; let event="track_finished";
-    if(action==="skip"){status="skipped";event="track_skipped"} else if(action==="stop"){status="skipped";event="broadcast_interrupted"} else if(code!==0){status="failed";event="track_failed"}
-    await client.query(`UPDATE broadcast_queue SET status=$2,ended_at=now(),failed_reason=$3 WHERE id=$1`,[queueId,status,code!==0&&!action?stderr:null]);
-    await client.query(`UPDATE now_playing SET state='idle',queue_item_id=NULL,media_asset_id=NULL,started_at=NULL,elapsed_ms=0,last_heartbeat_at=NULL,revision=revision+1,control_revision=control_revision+1,updated_at=now() WHERE station_id=$1 AND queue_item_id=$2`,[stationId,queueId]);
-    await client.query(`INSERT INTO stream_events(station_id,event_type,queue_item_id,payload) VALUES($1,$2,$3,$4)`,[stationId,event,queueId,{ffmpeg_code:code,action:action??null,error:code!==0?stderr:null}]);
-    if(event==='track_failed') { await client.query(`INSERT INTO broadcast_incidents(station_id,severity,code,message,metadata) VALUES($1,'critical','FFMPEG_TRACK_FAILED',$2,$3)`,[stationId,`FFmpeg failed while playing ${queueId}`,{queueId,code,stderr}]); }
+    const finalStatus = action === "skip" ? "skipped" : action === "stop" ? "skipped" : code !== 0 ? "failed" : "played";
+    const event = action === "skip" ? "track_skipped" : action === "stop" ? "broadcast_interrupted" : code !== 0 ? "track_failed" : "track_finished";
+    await client.query(
+      `SELECT * FROM public.finalize_queue_item($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        stationId,
+        queueId,
+        finalStatus,
+        code !== 0 && !action ? stderr : null,
+        event,
+        JSON.stringify({ ffmpeg_code: code, action: action ?? null, error: code !== 0 ? stderr : null }),
+        event === "track_failed" ? "FFMPEG_TRACK_FAILED" : null,
+        event === "track_failed" ? `FFmpeg failed while playing ${queueId}` : null,
+        event === "track_failed" ? JSON.stringify({ queueId, code, stderr }) : JSON.stringify({})
+      ]
+    );
     await client.query("COMMIT");
   } catch(e){await client.query("ROLLBACK");console.error("broadcast finalize:",e)} finally{client.release()}
   activeTrack=null;
