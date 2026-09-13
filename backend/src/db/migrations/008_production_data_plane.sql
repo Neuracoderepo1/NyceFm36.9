@@ -125,10 +125,12 @@ $$;
 
 revoke all on function public.vote_audience_poll(uuid,uuid,uuid,text) from public, anon, authenticated;
 
--- Note: the poll status check above uses 'published'. audience_polls.status
--- is currently constrained to ('draft','active','closed') as of migration
--- 005_audience_platform.sql -- flagged for follow-up, not corrected here,
--- since this migration reproduces exactly what is live on production.
+-- Note: the poll status check above uses 'published', which
+-- audience_polls.status (constrained to 'draft'/'active'/'closed' as of
+-- 005_audience_platform.sql) never allows -- meaning this RPC could never
+-- succeed as originally deployed. Reproduced as-is here since this
+-- migration documents exactly what was live at the time; corrected by
+-- 016_fix_vote_audience_poll_status_check.sql.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
