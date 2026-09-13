@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { getRedisClient } from "../lib/redis.js";
+import { checkObjectStorageHealth, configuredStorageProvider } from "../services/objectStorage.js";
 
 export const healthRouter = Router();
 
@@ -24,6 +25,15 @@ healthRouter.get("/ready", async (_req, res) => {
     checks.redis = "healthy";
   } catch {
     checks.redis = "unhealthy";
+  }
+
+  if (configuredStorageProvider() === "supabase") {
+    try {
+      await checkObjectStorageHealth();
+      checks.storage = "healthy";
+    } catch {
+      checks.storage = "unhealthy";
+    }
   }
 
   const allHealthy = Object.values(checks).every((v) => v === "healthy");

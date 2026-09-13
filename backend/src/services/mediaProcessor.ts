@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { PoolClient } from "pg";
 import { pool } from "../db/pool.js";
 import path from "node:path";
 import { createObjectSignedUrl, configuredStorageProvider } from "./objectStorage.js";
@@ -10,8 +11,9 @@ export function stopMediaProcessor(){ if(timer) clearInterval(timer); timer=null
 async function tick(){
   if(busy) return;
   busy=true;
-  const client=await pool.connect();
+  let client: PoolClient | null = null;
   try{
+    client=await pool.connect();
     const {rows}=await client.query<{id:string;storage_key:string;storage_provider:string}>(`SELECT id,storage_key,storage_provider FROM media_assets WHERE status='processing' ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED`);
     if(!rows[0]) return;
     const a=rows[0];
@@ -26,5 +28,5 @@ async function tick(){
     if(!Number.isFinite(durationMs)||durationMs<=0) throw new Error("Invalid audio duration");
     await client.query(`UPDATE media_assets SET duration_ms=$2,status='ready',updated_at=now() WHERE id=$1`,[a.id,durationMs]);
   }catch(err){ console.error("media processor:",err); }
-  finally{client.release();busy=false;}
+  finally{client?.release();busy=false;}
 }
