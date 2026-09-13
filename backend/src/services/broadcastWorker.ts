@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { PoolClient } from "pg";
 import { pool } from "../db/pool.js";
 import { getDefaultStationId } from "./broadcast.js";
 import { streamDir } from "./streaming.js";
@@ -47,8 +48,9 @@ export async function requestWorkerAction(stationId: string, action: "skip" | "s
 async function tick() {
   if (ticking || activeTrack) return;
   ticking = true;
-  const client = await pool.connect();
+  let client: PoolClient | null = null;
   try {
+    client = await pool.connect();
     const stationId = await getDefaultStationId();
     await materializeSchedule(stationId, Number(process.env.BROADCAST_SCHEDULE_HORIZON_MINUTES ?? 30));
     await client.query("BEGIN");
@@ -81,7 +83,7 @@ async function tick() {
     await client.query("COMMIT");
     activeTrack={stationId,queueId:q.id,mediaAssetId:q.media_asset_id,startedAt:new Date(),state:"playing"};
     await playTrack(stationId,q.id,q.media_asset_id,asset.rows[0].storage_key);
-  } catch(e){ try{await client.query("ROLLBACK")}catch{} console.error("broadcast worker:",e); } finally { client.release(); ticking=false; }
+  } catch(e){ try{await client?.query("ROLLBACK")}catch{} console.error("broadcast worker:",e); } finally { client?.release(); ticking=false; }
 }
 
 async function playTrack(stationId:string,queueId:string,mediaAssetId:string,storageKey:string) {
@@ -100,8 +102,9 @@ async function playTrack(stationId:string,queueId:string,mediaAssetId:string,sto
   const code=await new Promise<number>(resolve=>child.on("close",c=>resolve(c??1)));
   clearInterval(heartbeat); activeProcess=null;
   const action=requestedAction; requestedAction=null;
-  const client=await pool.connect();
+  let client: PoolClient | null = null;
   try {
+    client = await pool.connect();
     await client.query("BEGIN");
     const finalStatus = action === "skip" ? "skipped" : action === "stop" ? "skipped" : code !== 0 ? "failed" : "played";
     const event = action === "skip" ? "track_skipped" : action === "stop" ? "broadcast_interrupted" : code !== 0 ? "track_failed" : "track_finished";
@@ -120,7 +123,7 @@ async function playTrack(stationId:string,queueId:string,mediaAssetId:string,sto
       ]
     );
     await client.query("COMMIT");
-  } catch(e){await client.query("ROLLBACK");console.error("broadcast finalize:",e)} finally{client.release()}
+  } catch(e){try{await client?.query("ROLLBACK")}catch{} console.error("broadcast finalize:",e)} finally{client?.release()}
   activeTrack=null;
   if(code!==0&&!action) restartAttempts++;
   else restartAttempts=0;

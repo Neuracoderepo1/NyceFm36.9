@@ -31,6 +31,15 @@ export async function ensureObjectStorage() {
   if (!create.ok && create.status !== 409) throw new Error(`Supabase storage bucket creation failed (${create.status})`);
 }
 
+export async function checkObjectStorageHealth(): Promise<void> {
+  if (provider !== "supabase") return;
+  const { url, key } = requireSupabase();
+  const response = await fetch(`${url}/storage/v1/bucket/${encodeURIComponent(bucket)}`, {
+    headers: { Authorization: `Bearer ${key}`, apikey: key },
+  });
+  if (!response.ok) throw new Error(`Supabase storage health check failed (${response.status})`);
+}
+
 export async function uploadLocalFileToObjectStorage(localPath: string, key: string, contentType: string) {
   if (provider !== "supabase") return;
   const { url, key: secret } = requireSupabase();
