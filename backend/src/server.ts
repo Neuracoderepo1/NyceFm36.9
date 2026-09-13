@@ -1,18 +1,17 @@
 import { createApp } from "./app.js";
-import { startBroadcastWorker } from "./services/broadcastWorker.js";
-import { startMediaProcessor, stopMediaProcessor } from "./services/mediaProcessor.js";
 import { stopBroadcastWorker } from "./services/broadcastWorker.js";
-import { startAiWorker, stopAiWorker } from "./services/aiWorker.js";
+import { stopMediaProcessor } from "./services/mediaProcessor.js";
+import { stopAiWorker } from "./services/aiWorker.js";
+import { startWorkersSequenced } from "./services/workerOrchestrator.js";
 import { pool } from "./db/pool.js";
 import { closeRedisClient } from "./lib/redis.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 createApp()
-  .then((app) => {
-    startMediaProcessor();
-    if (process.env.BROADCAST_WORKER_ENABLED === "true") startBroadcastWorker();
-    startAiWorker();
+  .then(async (app) => {
+    const activation = await startWorkersSequenced();
+    console.log("[startup] worker activation:", activation);
     const server = app.listen(PORT, () => {
       console.log(`NYCE FM API listening on :${PORT}`);
     });
