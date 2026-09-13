@@ -35,7 +35,7 @@ export class LocalStationProvider implements AiProvider {
     const np = context.nowPlaying as { state?: string; media_asset_id?: string };
     const audience = context.audience as { listeners?: number; polls?: unknown[] };
     const queue = context.queue;
-    if (np?.state === "playing" && queue.length === 0) {
+    if (np?.state === "playing") {
       return { actionType: "hold", confidence: 0.99, rationale: "Current programme is active; no safe queue mutation is required.", payload: {} };
     }
     if (!np?.media_asset_id && queue.length > 0) {

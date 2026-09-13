@@ -11,3 +11,11 @@ export async function getRedisClient(): Promise<RedisClientType> {
   }
   return client;
 }
+
+/** Gracefully closes the shared Redis client, if one was ever created. Safe to call more than once. */
+export async function closeRedisClient(): Promise<void> {
+  if (client && client.isOpen) {
+    await client.quit();
+  }
+  client = null;
+}
