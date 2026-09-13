@@ -91,7 +91,16 @@ export async function createApp() {
 
   await ensureStorage();
   await ensureStreamStorage();
-  await ensureObjectStorage();
+  try {
+    await ensureObjectStorage();
+  } catch (err) {
+    // Non-fatal: the API (including /health/ready, which independently
+    // re-checks storage per request) should still come up even if object
+    // storage is degraded at boot. Background workers that depend on
+    // storage are separately gated by startWorkersSequenced() in
+    // server.ts and will simply stay off until this is resolved.
+    console.error("[startup] object storage check failed -- API is still starting, but storage-dependent workers will stay off:", err instanceof Error ? err.message : err);
+  }
 
   // 404
   app.use((req, res) => {
