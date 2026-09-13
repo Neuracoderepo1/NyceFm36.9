@@ -1,3 +1,13 @@
+-- 011a_production_media_ai_hardening.sql
+-- Renamed from 012_production_media_ai_hardening.sql, which collided with
+-- 012_dj_producer_permission_matrix.sql (two files both prefixed "012").
+--
+-- On production this ran as an unprefixed migration named
+-- "production_media_ai_hardening" (version 20260912071642), chronologically
+-- BEFORE 012_dj_producer_permission_matrix (version 20260912194948). The
+-- 011a prefix reflects that true order and resolves the collision so
+-- filename-sorted migration runners apply things in the right sequence.
+--
 -- Final application-level invariants for the production media/AI plane.
 DO $$
 BEGIN
