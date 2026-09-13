@@ -4,6 +4,7 @@ import { startMediaProcessor, stopMediaProcessor } from "./services/mediaProcess
 import { stopBroadcastWorker } from "./services/broadcastWorker.js";
 import { startAiWorker, stopAiWorker } from "./services/aiWorker.js";
 import { pool } from "./db/pool.js";
+import { closeRedisClient } from "./lib/redis.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
@@ -20,7 +21,11 @@ createApp()
       stopAiWorker();
       stopMediaProcessor();
       server.close(async () => {
-        try { await pool.end(); } finally { process.exit(0); }
+        try {
+          await closeRedisClient();
+        } finally {
+          try { await pool.end(); } finally { process.exit(0); }
+        }
       });
       setTimeout(() => process.exit(1), 10000).unref();
     };
