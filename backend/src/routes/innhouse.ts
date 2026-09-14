@@ -196,6 +196,140 @@ function houseErrorResponse(req: Request, res: any, err: unknown) {
   throw err;
 }
 
+// ---------------------------------------------------------------------
+// Public House presentation endpoint
+//
+// GET /api/houses/:house/public is intentionally unauthenticated and
+// intentionally narrow. It exists for public-facing surfaces (station
+// website, embeds, share cards) that need House/creator/channel display
+// data without a logged-in session.
+//
+// It must NEVER return:
+//   - house_members rows, roles, or membership status
+//   - legacy_station_id (an internal linkage to the pre-INNHOUSE schema)
+//   - raw `config` JSONB blobs (may hold non-presentation / internal
+//     settings that were never vetted for public exposure)
+//   - internal UUIDs (slugs are the public-facing identifiers)
+//   - non-active channels (paused/archived channels aren't public)
+//
+// This is a distinct resolver (not a "redacted" reuse of resolveHouse())
+// on purpose: a resolver built for an authenticated, membership-checked
+// context is the wrong place to grow a public code path from, since any
+// future field added to that context is auth-gated by construction, not
+// by someone remembering to filter it back out here.
+// ---------------------------------------------------------------------
+
+type PublicHouseContext = {
+  house: {
+    slug: string;
+    name: string;
+    houseType: string;
+    timezone: string | null;
+  };
+  creator: {
+    handle: string;
+    displayName: string;
+    bio: string | null;
+    avatarKey: string | null;
+  } | null;
+  channels: Array<{
+    slug: string;
+    name: string;
+    channelType: string;
+  }>;
+};
+
+async function resolvePublicHouse(req: Request): Promise<PublicHouseContext> {
+  const houseKey = req.params.house;
+
+  // id used only to join creators/channels below; never included in the
+  // response body itself.
+  const houseResult = await pool.query<{
+    id: string;
+    slug: string;
+    name: string;
+    house_type: string;
+    status: string;
+    timezone: string | null;
+  }>(
+    `SELECT id, slug, name, house_type, status, timezone
+       FROM houses
+      WHERE (id::text = $1 OR slug = $1)
+      LIMIT 1`,
+    [houseKey]
+  );
+
+  const house = houseResult.rows[0];
+  if (!house || house.status !== "active") {
+    const error = new Error("HOUSE_NOT_FOUND");
+    (error as Error & { statusCode?: number }).statusCode = 404;
+    throw error;
+  }
+
+  const [creatorResult, channelsResult] = await Promise.all([
+    pool.query<{
+      handle: string;
+      display_name: string;
+      bio: string | null;
+      avatar_key: string | null;
+    }>(
+      `SELECT handle, display_name, bio, avatar_key
+         FROM creators
+        WHERE house_id = $1
+        ORDER BY created_at ASC
+        LIMIT 1`,
+      [house.id]
+    ),
+    pool.query<{
+      slug: string;
+      name: string;
+      channel_type: string;
+    }>(
+      `SELECT slug, name, channel_type
+         FROM channels
+        WHERE house_id = $1
+          AND status = 'active'
+        ORDER BY created_at ASC`,
+      [house.id]
+    ),
+  ]);
+
+  return {
+    house: {
+      slug: house.slug,
+      name: house.name,
+      houseType: house.house_type,
+      timezone: house.timezone,
+    },
+    creator: creatorResult.rows[0]
+      ? {
+          handle: creatorResult.rows[0].handle,
+          displayName: creatorResult.rows[0].display_name,
+          bio: creatorResult.rows[0].bio,
+          avatarKey: creatorResult.rows[0].avatar_key,
+        }
+      : null,
+    channels: channelsResult.rows.map((channel) => ({
+      slug: channel.slug,
+      name: channel.name,
+      channelType: channel.channel_type,
+    })),
+  };
+}
+
+// Registered ahead of `innhouseRouter.use(requireAuth)` below so this
+// path is never gated behind a session — that ordering is the actual
+// enforcement mechanism, not a comment's promise.
+innhouseRouter.get("/:house/public", async (req, res) => {
+  try {
+    const context = await resolvePublicHouse(req);
+    res.set("Cache-Control", "public, max-age=30");
+    res.json(context);
+  } catch (err) {
+    return houseErrorResponse(req, res, err);
+  }
+});
+
 innhouseRouter.use(requireAuth);
 
 innhouseRouter.get("/:house", async (req, res) => {
