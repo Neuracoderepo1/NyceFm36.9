@@ -11,8 +11,8 @@ aiRouter.get("/actions", requirePermission("ai.read"), async (req,res)=>res.json
 aiRouter.get("/runs", requirePermission("ai.read"), async (req,res)=>res.json({runs:await getAiRuns(typeof req.query.stationId==='string'?req.query.stationId:undefined)}));
 
 aiRouter.post("/decide", requirePermission("ai.control"), async (req,res)=>{
-  const b=z.object({stationId:station,mode:z.enum(["recommendation","autonomous"]).default("recommendation")}).parse(req.body??{});
-  res.status(201).json(await runAiCycle({stationId:b.stationId,mode:b.mode,actorId:req.session.userId!,correlationId:req.id}));
+  const b=z.object({stationId:station,mode:z.enum(["recommendation","autonomous"]).default("recommendation"),requestedActionType:z.enum(["speak"]).optional(),hint:z.enum(["shoutout","track_intro"]).optional()}).parse(req.body??{});
+  res.status(201).json(await runAiCycle({stationId:b.stationId,mode:b.mode,requestedActionType:b.requestedActionType,hint:b.hint,actorId:req.session.userId!,correlationId:req.id}));
 });
 
 aiRouter.post("/actions/:actionId/execute", requirePermission("ai.control"), async (req,res)=>{

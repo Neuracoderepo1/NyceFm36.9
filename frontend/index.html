@@ -295,6 +295,7 @@ pre.code-block{background:#0a0b0f;border:1px solid #1a2a22;border-radius:8px;pad
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
               <button onclick="triggerShoutout('shoutout')" id="btnShoutout" style="padding:7px 14px;border-radius:8px;font-size:10px;letter-spacing:.1em;font-weight:700;background:#00f5c425;border:1px solid #00f5c440;color:#00f5c4">🎤 SHOUTOUT</button>
               <button onclick="triggerShoutout('track_intro')" id="btnIntro" style="padding:7px 14px;border-radius:8px;font-size:10px;letter-spacing:.1em;font-weight:700;background:#00f5c410;border:1px solid #00f5c440;color:#00f5c4">🎵 TRACK INTRO</button>
+              <button onclick="approveAiAction()" id="btnApproveAi" style="display:none;padding:7px 14px;border-radius:8px;font-size:10px;letter-spacing:.1em;font-weight:700;background:#ffe04b20;border:1px solid #ffe04b50;color:#ffe04b">✅ APPROVE &amp; BROADCAST</button>
               <span id="hypeChipSmall" style="font-size:9px;padding:7px 12px;border-radius:12px;background:#ffe04b20;color:#ffe04b;border:1px solid #ffe04b40">🎵 MID</span>
             </div>
           </div>
@@ -1015,6 +1016,8 @@ function buildAIMeters(){
 // §16 · AI SHOUTOUT
 // ════════════════════════════════════════════════════════════
 
+let pendingAiActionId = null;
+
 async function triggerShoutout(type="shoutout"){
   if(aiGenerating)return;
   aiGenerating=true;
@@ -1022,12 +1025,10 @@ async function triggerShoutout(type="shoutout"){
   document.getElementById("aiFallbackBadge").style.display="none";
   document.getElementById("btnShoutout").disabled=true;
   document.getElementById("btnIntro").disabled=true;
+  document.getElementById("btnApproveAi").style.display="none";
+  pendingAiActionId=null;
 
-  const t=TRACKS[trackIdx],m=ModeCtrl.get(modeId),lv=HypeEngine.level(hype);
-  const res=await AIRouter.generate(type,{
-    track:t.title,artist:t.artist,genre:t.genre,bpm:t.bpm,energy:t.energy,
-    listeners,modeName:m.label,mode:m,hypeLevel:lv.label,
-  });
+  const res=await AIRouter.generate(type,{});
 
   document.getElementById("aiText").textContent=res.response;
   if(res.fallback)document.getElementById("aiFallbackBadge").style.display="inline-block";
@@ -1035,9 +1036,36 @@ async function triggerShoutout(type="shoutout"){
   document.getElementById("btnShoutout").disabled=false;
   document.getElementById("btnIntro").disabled=false;
   aiGenerating=false;
-  appendChat({id:Date.now(),ts:Date.now(),user:"AI DJ NYCE",flag:"📻",msg:res.response,tier:"VIP",isAI:true});
-  boostHype(8);
-  toast(res.fallback?"⚡ Fallback response used":"🎤 AI shoutout generated!",res.fallback?"warn":"success",3000);
+
+  if(res.actionId && res.proposed){
+    // The AI has proposed this line but it has NOT gone out over the air yet.
+    // Human approval is required before it reaches the broadcast system.
+    pendingAiActionId=res.actionId;
+    document.getElementById("btnApproveAi").style.display="inline-block";
+    toast(`🤖 AI proposed (${Math.round((res.confidence??0)*100)}% confidence) — review and approve to broadcast`,"info",4000);
+  } else if(!res.fallback){
+    toast(res.rejectedReason?`⚠️ AI proposal rejected: ${res.rejectedReason}`:"⚠️ AI did not propose a broadcastable action right now","warn",4000);
+  } else {
+    toast("⚡ Fallback response used","warn",3000);
+  }
+}
+
+async function approveAiAction(){
+  if(!pendingAiActionId)return;
+  const btn=document.getElementById("btnApproveAi");
+  btn.disabled=true;
+  try{
+    await NYCEFM_PROD.request(`/api/ai/actions/${pendingAiActionId}/execute`,{method:"POST"});
+    appendChat({id:Date.now(),ts:Date.now(),user:"AI DJ NYCE",flag:"📻",msg:document.getElementById("aiText").textContent,tier:"VIP",isAI:true});
+    boostHype(8);
+    toast("🎤 Approved — now live on air!","success",3000);
+    btn.style.display="none";
+    pendingAiActionId=null;
+  }catch(e){
+    toast(`❌ Broadcast failed: ${e.message||"Unknown error"}`,"error",4000);
+  }finally{
+    btn.disabled=false;
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1439,9 +1467,10 @@ function doBroadcast(){
 // Listener count and chat are no longer randomly generated in the browser.
 // AudienceSync (defined in §22, wired up from initProductionIntegration)
 // drives `listeners`/`chatMessages` from the real /api/audience/* backend.
-// Manual "SHOUTOUT" / "TRACK INTRO" buttons still call triggerShoutout(),
-// which currently only hits the disabled client-side AIRouter stub — that
-// still needs to be re-pointed at POST /api/ai/decide as a follow-up.
+// Manual "SHOUTOUT" / "TRACK INTRO" buttons call triggerShoutout(), which
+// calls POST /api/ai/decide (see AIRouter.generate override below) and
+// requires explicit operator approval via approveAiAction() before anything
+// reaches the broadcast system - see ai_actions.status: proposed -> executed.
 
 // ════════════════════════════════════════════════════════════
 // §21.5 · LIBRARY UPLOAD SYSTEM (v3.2 — Operator)
@@ -1999,10 +2028,26 @@ async function initProductionIntegration(){
   Auth.renderAuth = NYCEFM_PROD.renderAuth;
 
   // Replace demo AI provider calls. The browser never receives an Anthropic key.
-  AIRouter.generate = async () => ({
-    response:"AI generation is governed by the NYCE FM backend. Run an approved AI action from Command Center.",
-    fallback:true,genMs:0,modMs:0,totalMs:0
-  });
+  // Calls the real backend decision endpoint and returns a proposal only —
+  // it never marks anything as broadcast. See approveAiAction() for the
+  // separate explicit approval/execute step that actually goes on air.
+  AIRouter.generate = async (type) => {
+    const hint = type === "track_intro" ? "track_intro" : "shoutout";
+    try {
+      const res = await NYCEFM_PROD.request("/api/ai/decide", {
+        method: "POST",
+        body: JSON.stringify({ mode: "recommendation", requestedActionType: "speak", hint })
+      });
+      const allowed = res?.policy?.allowed;
+      const decision = res?.decision;
+      if (allowed && decision?.actionType === "speak" && typeof decision.payload?.text === "string") {
+        return { response: decision.payload.text, fallback: false, proposed: true, actionId: res.actionId, confidence: decision.confidence };
+      }
+      return { response: "AI did not propose a broadcastable line for this request.", fallback: false, proposed: false, rejectedReason: res?.policy?.reason ?? decision?.rationale };
+    } catch (e) {
+      return { response: "AI generation is governed by the NYCE FM backend. Run an approved AI action from Command Center.", fallback: true, proposed: false, rejectedReason: e.message };
+    }
+  };
 
   StripeService.tip = async({amountCents})=>{
     if(!NYCEFM_PROD.state){return{success:false,error:"Sign in before tipping."};}

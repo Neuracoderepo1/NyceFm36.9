@@ -13,6 +13,8 @@ export interface AiContext {
   audience: unknown;
   recentEvents: unknown[];
   config: unknown;
+  requestedActionType?: "speak";
+  hint?: "shoutout" | "track_intro";
 }
 
 export interface AiDecision {
@@ -32,9 +34,23 @@ export interface AiProvider {
 export class LocalStationProvider implements AiProvider {
   readonly name = "local-rules-v1";
   async decide(context: AiContext): Promise<AiDecision> {
-    const np = context.nowPlaying as { state?: string; media_asset_id?: string };
+    const np = context.nowPlaying as { state?: string; media_asset_id?: string; title?: string; artist?: string };
     const audience = context.audience as { listeners?: number; polls?: unknown[] };
     const queue = context.queue;
+
+    // On-demand manual trigger (SHOUTOUT / TRACK INTRO buttons). This branch is
+    // evaluated before the autonomous rules below and never mutates the queue —
+    // it only proposes a 'speak' decision, which still goes through
+    // actionAllowed() and still lands as a 'proposed' ai_actions row requiring
+    // a separate explicit /execute call. No approval step is bypassed here.
+    if (context.requestedActionType === "speak") {
+      const listeners = audience?.listeners ?? 0;
+      const text = context.hint === "track_intro"
+        ? (np?.title ? `Coming up next on Nyce FM 36.9: "${np.title}"${np.artist ? ` by ${np.artist}` : ""}. Stay locked in!` : "Coming up next on Nyce FM 36.9 — stay locked in!")
+        : `You're locked into Nyce FM 36.9${listeners > 0 ? ` with ${listeners.toLocaleString()} listeners strong` : ""} — keep it right here!`;
+      return { actionType: "speak", confidence: 0.9, rationale: `Manual ${context.hint ?? "speak"} requested by operator.`, payload: { text } };
+    }
+
     if (np?.state === "playing") {
       return { actionType: "hold", confidence: 0.99, rationale: "Current programme is active; no safe queue mutation is required.", payload: {} };
     }
@@ -56,7 +72,10 @@ export class AnthropicStationProvider implements AiProvider {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
     const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
-    const system = `You are NYCE FM's station intelligence engine. Return ONLY valid JSON with keys actionType, confidence, rationale, payload. actionType must be one of queue_track, skip_track, speak, hold, no_action. Never invent mediaAssetId. Keep confidence between 0 and 1. Respect the supplied station policy. skip_track must never be proposed unless explicitly justified by a real current broadcast problem. speak payload must contain text <= 2000 chars. queue_track payload must contain mediaAssetId from the supplied queue.`;
+    const manualRequest = context.requestedActionType === "speak"
+      ? `\nThe operator has manually pressed a "${context.hint === "track_intro" ? "TRACK INTRO" : "SHOUTOUT"}" button and is requesting an on-demand voice line right now. You MUST return actionType "speak" with hype text appropriate to that request, using the real current track/audience data in the supplied context. Do not queue, skip, hold, or decline this manual request unless the context makes a speak line genuinely unsafe (e.g. missing track data for a track intro).`
+      : "";
+    const system = `You are NYCE FM's station intelligence engine. Return ONLY valid JSON with keys actionType, confidence, rationale, payload. actionType must be one of queue_track, skip_track, speak, hold, no_action. Never invent mediaAssetId. Keep confidence between 0 and 1. Respect the supplied station policy. skip_track must never be proposed unless explicitly justified by a real current broadcast problem. speak payload must contain text <= 2000 chars. queue_track payload must contain mediaAssetId from the supplied queue.${manualRequest}`;
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
@@ -105,10 +124,10 @@ async function actionAllowed(stationId: string, decision: AiDecision): Promise<{
   return { allowed: true };
 }
 
-export async function runAiCycle(input: { stationId?: string; mode: AiMode; actorId: string | null; correlationId: string }) {
+export async function runAiCycle(input: { stationId?: string; mode: AiMode; requestedActionType?: "speak"; hint?: "shoutout" | "track_intro"; actorId: string | null; correlationId: string }) {
   const stationId = input.stationId ?? await getDefaultStationId();
   const started = Date.now();
-  const context = await buildContext(stationId);
+  const context: AiContext = { ...await buildContext(stationId), requestedActionType: input.requestedActionType, hint: input.hint };
   const ai = provider();
   let decision: AiDecision;
   try {
