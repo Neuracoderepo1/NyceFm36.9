@@ -23,6 +23,7 @@ import { aiRouter } from "./routes/ai.js";
 import { paymentsRouter, handleStripeWebhook } from "./routes/payments.js";
 import { ensureObjectStorage } from "./services/objectStorage.js";
 import { innhouseRouter } from "./routes/innhouse.js";
+import houseListenerRouter from "./routes/houseListener.js";
 
 export async function createApp() {
   const app = express();
@@ -89,6 +90,7 @@ export async function createApp() {
   app.use("/api/audience", audienceRouter);
   app.use("/api/ai", aiRouter);
   app.use("/api/payments", paymentsRouter);
+  app.use("/api/houses", houseListenerRouter);
   app.use("/api/houses", innhouseRouter);
 
   await ensureStorage();
