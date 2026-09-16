@@ -256,8 +256,9 @@
       state.polls = polls?.polls || [];
     } catch (_) {}
     const panel = document.getElementById('ih-panel');
-    if (panel && !panel.hidden) renderPanel(panel);
-    renderShell(document.getElementById(CONFIG.mount));
+    if (panel && !panel.hidden) {
+      renderPanel(panel);
+    }
   }
 
   async function sendPresence() {
@@ -358,7 +359,17 @@
     } catch (_) {}
   }
 
+  function cleanup() {
+    state.timers.forEach((timer) => clearInterval(timer));
+    state.timers = [];
+
+    if (state.sse) {
+      state.sse.close();
+      state.sse = null;
+    }
+  }
   async function boot() {
+    cleanup();
     mount();
     try {
       await resolveHouse();
