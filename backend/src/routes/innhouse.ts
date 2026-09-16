@@ -846,3 +846,29 @@ innhouseRouter.patch(
     }
   }
 );
+
+innhouseRouter.delete(
+  "/:house/creators/:creatorId",
+  attachHouseAuth,
+  requireHouseRole("owner", "admin"),
+  async (req, res) => {
+    const houseId = req.houseAuth!.houseId;
+    const creatorId = req.params.creatorId;
+
+    // Same house_id-scoped WHERE clause as the PATCH route above: a
+    // creatorId belonging to a different House matches zero rows and is
+    // indistinguishable from "creator does not exist" -- no cross-House
+    // existence leak. Deleting the House's only creator is a valid state
+    // (resolveHouse/resolvePublicHouse already treat `creator: null` as
+    // normal -- a House was never required to have one), so no additional
+    // "last creator" invariant is enforced here, unlike ownership.
+    const result = await pool.query(
+      `DELETE FROM creators WHERE house_id = $1 AND id = $2`,
+      [houseId, creatorId]
+    );
+    if (result.rowCount === 0) {
+      return sendHouseError(req, res, 404, "CREATOR_NOT_FOUND", "No such creator in this House.");
+    }
+    res.status(204).end();
+  }
+);

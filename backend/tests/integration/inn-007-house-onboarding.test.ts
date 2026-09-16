@@ -97,6 +97,27 @@ describe("INN-007: House & Creator onboarding", () => {
       expect(res.body.error.code).toBe("CREATOR_NOT_FOUND");
     });
 
+    it("a creator delete with a cross-House creatorId fails as not-found (no existence leak)", async () => {
+      const houseA = await insertHouse();
+      const houseB = await insertHouse();
+      const admin = await createTestUser();
+      await addMember(houseA.id, admin.id, "admin");
+      const creatorInB = await testPool.query<{ id: string }>(
+        `INSERT INTO creators (house_id, handle, display_name) VALUES ($1,'other-handle','Other') RETURNING id`,
+        [houseB.id]
+      );
+
+      const agent = await login(await getApp(), admin.email, admin.password);
+      const res = await agent.delete(`/api/houses/${houseA.slug}/creators/${creatorInB.rows[0].id}`);
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("CREATOR_NOT_FOUND");
+
+      // The row in House B must be untouched -- a 404 here must mean
+      // "not visible from this House", never "deleted anyway".
+      const stillThere = await testPool.query(`SELECT id FROM creators WHERE id=$1`, [creatorInB.rows[0].id]);
+      expect(stillThere.rowCount).toBe(1);
+    });
+
     it("platform role is not a House role: a platform SUPER_ADMIN with no House membership is still HOUSE_FORBIDDEN", async () => {
       const house = await insertHouse();
       const platformSuperAdmin = await createTestUser({ roles: ["SUPER_ADMIN"] });
@@ -479,6 +500,61 @@ describe("INN-007: House & Creator onboarding", () => {
 
       const row = await testPool.query(`SELECT house_id FROM creators WHERE id=$1`, [res.body.creator.id]);
       expect(row.rows[0].house_id).toBe(house.id); // not otherHouse.id
+    });
+
+    it("owner and admin can delete a creator; member cannot", async () => {
+      const house = await insertHouse();
+      const owner = await createTestUser();
+      const member = await createTestUser();
+      await addMember(house.id, owner.id, "owner");
+      await addMember(house.id, member.id, "member");
+      const created = await testPool.query<{ id: string }>(
+        `INSERT INTO creators (house_id, handle, display_name) VALUES ($1,'dj-nyce','DJ NYCE') RETURNING id`,
+        [house.id]
+      );
+      const creatorId = created.rows[0].id;
+
+      const memberAgent = await login(await getApp(), member.email, member.password);
+      const forbiddenRes = await memberAgent.delete(`/api/houses/${house.slug}/creators/${creatorId}`);
+      expect(forbiddenRes.status).toBe(403);
+
+      const ownerAgent = await login(await getApp(), owner.email, owner.password);
+      const okRes = await ownerAgent.delete(`/api/houses/${house.slug}/creators/${creatorId}`);
+      expect(okRes.status).toBe(204);
+
+      const row = await testPool.query(`SELECT id FROM creators WHERE id=$1`, [creatorId]);
+      expect(row.rowCount).toBe(0);
+    });
+
+    it("deleting the House's only creator is allowed -- creators have no 'last one' invariant", async () => {
+      const house = await insertHouse();
+      const admin = await createTestUser();
+      await addMember(house.id, admin.id, "admin");
+      const agent = await login(await getApp(), admin.email, admin.password);
+
+      const created = await agent.post(`/api/houses/${house.slug}/creators`).send({ handle: "solo", displayName: "Solo" });
+      expect(created.status).toBe(201);
+
+      const del = await agent.delete(`/api/houses/${house.slug}/creators/${created.body.creator.id}`);
+      expect(del.status).toBe(204);
+
+      // The House itself must still resolve fine with zero creators --
+      // resolveHouse()/resolvePublicHouse() already model creator as
+      // nullable, so this is not a degraded state.
+      const houseRes = await agent.get(`/api/houses/${house.slug}`);
+      expect(houseRes.status).toBe(200);
+      expect(houseRes.body.creator).toBeNull();
+    });
+
+    it("deleting a nonexistent creatorId returns 404", async () => {
+      const house = await insertHouse();
+      const admin = await createTestUser();
+      await addMember(house.id, admin.id, "admin");
+      const agent = await login(await getApp(), admin.email, admin.password);
+
+      const res = await agent.delete(`/api/houses/${house.slug}/creators/00000000-0000-0000-0000-000000000000`);
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("CREATOR_NOT_FOUND");
     });
   });
 
