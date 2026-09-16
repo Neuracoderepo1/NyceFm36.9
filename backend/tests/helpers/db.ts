@@ -8,9 +8,20 @@ import { getTestDatabaseUrl } from "./env.js";
 export const testPool = new pg.Pool({ connectionString: getTestDatabaseUrl(), max: 5 });
 
 // Tables seeded by migrations that must survive a reset (the default
-// station + its settings row). Everything else in `public` is
-// test-generated and safe to wipe between tests for isolation.
-const SEED_TABLES = new Set(["stations", "station_settings", "schema_migrations"]);
+// station + its settings row, and the platform RBAC reference tables).
+// Everything else in `public` is test-generated and safe to wipe between
+// tests for isolation.
+//
+// roles/permissions/role_permissions were missing from this set: no test
+// file before INN-007's needed a platform role to survive past the first
+// resetDatabase() call (createTestUser's default 'LISTENER' role, and any
+// explicit role, both depend on a row existing in `roles`). Once any test
+// in a file called resetDatabase() in afterEach, every subsequent
+// createTestUser() call in that file would fail with "Unknown role in
+// test fixture" -- reproduced while adding tests/integration/inn-007-
+// house-onboarding.test.ts, which is the first suite to exercise
+// createTestUser with roles across more than one test.
+const SEED_TABLES = new Set(["stations", "station_settings", "schema_migrations", "roles", "permissions", "role_permissions"]);
 
 let cachedResettableTables: string[] | null = null;
 
