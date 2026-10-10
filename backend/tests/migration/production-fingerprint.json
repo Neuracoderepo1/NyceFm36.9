@@ -1,0 +1,10 @@
+{
+  "_comment": "Catalog fingerprint of the LIVE production database (Supabase project qmrqkmddkveoinvspqvn), captured read-only on 2026-10-10 with tests/migration/fingerprint.sql. The isolated snapshot DB must reproduce it exactly before any migration is tested.",
+  "columns": { "n": 314, "h": "3c68b88e384332a8e1a3f159a0971125" },
+  "constraints": { "n": 175, "h": "0880b8e1f330516bee72d06894b40ec4" },
+  "indexes": { "n": 148, "h": "858408461bbfd88c6c0ccf098b26d30a" },
+  "policies": { "n": 107, "h": "95fa0656663799b4a3bba118a9354fe5" },
+  "functions": { "n": 15, "h": "a1f0a49e6438622f664b97814545af22" },
+  "rls": { "n": 38, "h": "46f447913e62204a090b3d4fbccd26ec" },
+  "table_acl_innhouse": { "n": 5, "h": "22cbe7fcef722993a71b596aa95d19d7" }
+}

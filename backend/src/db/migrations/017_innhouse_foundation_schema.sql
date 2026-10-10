@@ -99,10 +99,10 @@ BEGIN
   v_house_timezone := COALESCE(v_station_timezone, 'Africa/Accra');
 
   INSERT INTO houses (slug, name, house_type, status, timezone)
-  VALUES ('nycefm', 'NYCE FM', 'station', 'active', v_house_timezone)
+  VALUES ('nyce-fm', 'NYCE FM', 'station', 'active', v_house_timezone)
   ON CONFLICT (slug) DO NOTHING;
 
-  SELECT id INTO v_house_id FROM houses WHERE slug = 'nycefm';
+  SELECT id INTO v_house_id FROM houses WHERE slug = 'nyce-fm';
 
   -- Wrap the deterministic primary legacy station as this House's
   -- primary channel, if one exists and isn't already wrapped.

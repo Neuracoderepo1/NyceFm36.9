@@ -6,7 +6,25 @@ import { pool } from "./pool.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 
-const BASELINE = process.argv.includes("--baseline");
+// --baseline-through <filename>  (or --baseline-through=<filename>)
+// Records every repo migration file up to AND INCLUDING <filename> as already applied
+// without executing it. A bare --baseline is refused on purpose: baselining "everything"
+// would also mark not-yet-applied migrations (e.g. 021) as done and silently skip them.
+function baselineThrough(): string | null {
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--baseline") {
+      throw new Error("--baseline requires an explicit cut-off: use --baseline-through <filename>");
+    }
+    if (args[i] === "--baseline-through") {
+      const v = args[i + 1];
+      if (!v || v.startsWith("--")) throw new Error("--baseline-through requires a migration filename");
+      return v;
+    }
+    if (args[i].startsWith("--baseline-through=")) return args[i].slice("--baseline-through=".length);
+  }
+  return null;
+}
 
 function migrationFiles(): string[] {
   return readdirSync(MIGRATIONS_DIR)
@@ -41,28 +59,35 @@ async function assertNotUnbaselinedSupabaseDb(): Promise<void> {
   throw new Error(
     "Refusing to migrate: this database has Supabase migration history but public.schema_migrations " +
       "is missing or empty, so every repo migration would be replayed. Review " +
-      "backend/docs/MIGRATION_RECONCILIATION.md, then run `npm run migrate -- --baseline` once to record " +
-      "the current repo files as already applied (no SQL is executed)."
+      "backend/docs/MIGRATION_RECONCILIATION.md, then run `npm run migrate -- --baseline-through <last file " +
+      "already applied in production>` once to record those repo files as applied (no SQL is executed)."
   );
 }
 
-async function baseline() {
+async function baseline(through: string) {
+  const files = migrationFiles();
+  if (!files.includes(through)) {
+    throw new Error(`--baseline-through: no such migration file: ${through}`);
+  }
+  const upTo = files.filter((f) => f <= through);
+  const pending = files.filter((f) => f > through);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename TEXT PRIMARY KEY,
       applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
-  const files = migrationFiles();
-  for (const file of files) {
+  for (const file of upTo) {
     await pool.query("INSERT INTO schema_migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING", [file]);
   }
-  console.log(`baselined ${files.length} migration file(s) as applied (no SQL executed)`);
+  console.log(`baselined ${upTo.length} migration file(s) through ${through} (no SQL executed)`);
+  console.log(`still pending: ${pending.length ? pending.join(", ") : "(none)"}`);
   await pool.end();
 }
 
 async function run() {
-  if (BASELINE) return baseline();
+  const through = baselineThrough();
+  if (through) return baseline(through);
 
   await assertNotUnbaselinedSupabaseDb();
 

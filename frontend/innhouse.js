@@ -8,7 +8,7 @@
  * Optional configuration:
  *   window.INNHOUSE_CONFIG = {
  *     apiBase: 'https://nycefm36-9.onrender.com',
- *     defaultHouse: 'nycefm',
+ *     defaultHouse: 'nyce-fm',
  *     mode: 'listener' // or 'studio'
  *   };
  *
@@ -21,7 +21,7 @@
 
   const CONFIG = Object.assign({
     apiBase: document.querySelector('meta[name="nycefm-api-base"]')?.content || window.location.origin,
-    defaultHouse: 'nycefm',
+    defaultHouse: 'nyce-fm',
     mode: 'listener',
     mount: 'innhouse-root',
   }, window.INNHOUSE_CONFIG || {});
