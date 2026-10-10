@@ -13,6 +13,16 @@ import {
 
 export const innhouseRouter = Router();
 
+/** True for a Postgres unique violation (23505) on the named constraint/index. */
+function isUniqueViolation(err: unknown, constraint: string): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: string }).code === "23505" &&
+    (err as { constraint?: string }).constraint === constraint
+  );
+}
+
 type HouseContext = {
   house: {
     id: string;
@@ -107,7 +117,7 @@ async function resolveHouse(req: Request): Promise<HouseContext> {
       `SELECT id, handle, display_name, bio, avatar_key, metadata
          FROM creators
         WHERE house_id = $1
-        ORDER BY created_at ASC
+        ORDER BY created_at ASC, id ASC
         LIMIT 1`,
       [house.id]
     ),
@@ -285,7 +295,7 @@ async function resolvePublicHouse(req: Request): Promise<PublicHouseContext> {
       `SELECT handle, display_name, bio, avatar_key
          FROM creators
         WHERE house_id = $1
-        ORDER BY created_at ASC
+        ORDER BY created_at ASC, id ASC
         LIMIT 1`,
       [house.id]
     ),
@@ -638,21 +648,26 @@ innhouseRouter.post(
       }
 
       // Exactly one owner is demoted and exactly one is promoted in the
-      // same transaction, so a zero-owner state is structurally
-      // unreachable from this code path -- there is no window where the
-      // count could be read as zero by a concurrent request.
-      await client.query(
-        `UPDATE house_members SET role = 'owner', updated_at = now() WHERE house_id = $1 AND user_id = $2`,
-        [houseId, body.targetUserId]
-      );
+      // same transaction, so neither a zero-owner nor a two-owner state is
+      // ever visible to another request. The database additionally enforces
+      // at most one ACTIVE owner per House (uq_house_members_one_active_owner,
+      // migration 021), so the outgoing owner MUST be demoted before the
+      // incoming owner is promoted -- the unique index is not deferrable.
       await client.query(
         `UPDATE house_members SET role = 'admin', updated_at = now() WHERE house_id = $1 AND user_id = $2`,
         [houseId, actorId]
+      );
+      await client.query(
+        `UPDATE house_members SET role = 'owner', updated_at = now() WHERE house_id = $1 AND user_id = $2`,
+        [houseId, body.targetUserId]
       );
       await client.query("COMMIT");
       res.json({ houseId, previousOwnerId: actorId, newOwnerId: body.targetUserId });
     } catch (err) {
       await client.query("ROLLBACK");
+      if (isUniqueViolation(err, "uq_house_members_one_active_owner")) {
+        return sendHouseError(req, res, 409, "OWNER_STATE_CHANGED", "House ownership changed concurrently; retry.");
+      }
       throw err;
     } finally {
       client.release();
@@ -711,6 +726,9 @@ innhouseRouter.post("/:house/ownership/bootstrap", async (req, res) => {
     res.status(201).json({ houseId, ownerId: actorId });
   } catch (err) {
     await client.query("ROLLBACK");
+    if (isUniqueViolation(err, "uq_house_members_one_active_owner")) {
+      return sendHouseError(req, res, 409, "HOUSE_ALREADY_HAS_OWNER", "This House already has an active owner.");
+    }
     throw err;
   } finally {
     client.release();
@@ -784,7 +802,7 @@ innhouseRouter.post(
       );
       res.status(201).json({ creator: creatorRow(result.rows[0]) });
     } catch (err) {
-      if (err instanceof Error && "code" in err && (err as { code?: string }).code === "23505") {
+      if (isUniqueViolation(err, "creators_house_id_handle_key")) {
         return sendHouseError(req, res, 409, "CREATOR_HANDLE_TAKEN", `Handle '${body.handle}' is already in use in this House.`);
       }
       throw err;
@@ -839,7 +857,7 @@ innhouseRouter.patch(
       }
       res.json({ creator: creatorRow(result.rows[0]) });
     } catch (err) {
-      if (err instanceof Error && "code" in err && (err as { code?: string }).code === "23505") {
+      if (isUniqueViolation(err, "creators_house_id_handle_key")) {
         return sendHouseError(req, res, 409, "CREATOR_HANDLE_TAKEN", `Handle '${body.handle}' is already in use in this House.`);
       }
       throw err;

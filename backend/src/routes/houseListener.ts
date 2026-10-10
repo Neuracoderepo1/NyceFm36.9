@@ -222,12 +222,19 @@ router.get("/:house/listener", async (req, res) => {
             '[]'::json
           ) AS channels
        FROM houses h
-       LEFT JOIN creators cr
-         ON cr.house_id = h.id
+       LEFT JOIN LATERAL (
+         -- A House may have many creators; the public listener view shows the
+         -- earliest one (same rule as innhouse.ts) so the row is deterministic.
+         SELECT handle, display_name, bio, avatar_key
+           FROM creators
+          WHERE house_id = h.id
+          ORDER BY created_at ASC, id ASC
+          LIMIT 1
+       ) cr ON true
        LEFT JOIN channels c
          ON c.house_id = h.id AND c.status = 'active'
       WHERE h.id = $1
-      GROUP BY h.id, cr.id
+      GROUP BY h.id, cr.handle, cr.display_name, cr.bio, cr.avatar_key
       LIMIT 1`,
       [house.id],
     );
