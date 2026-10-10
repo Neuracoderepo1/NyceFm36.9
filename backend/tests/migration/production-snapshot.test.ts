@@ -511,8 +511,9 @@ describe("deployment rehearsal with the real migration runner (npm run migrate)"
     const base = run("nycefm_mig_runner", "--baseline-through", through);
     expect(base.status, base.stderr).toBe(0);
     expect(base.stdout).toContain("021_innhouse_canonical_reconciliation.sql");
-    const recorded = await pool.query(`SELECT filename FROM public.schema_migrations ORDER BY filename`);
-    expect(recorded.rows.map((r) => r.filename)).toEqual(files.filter((f) => f <= through));
+    const recorded = await pool.query(`SELECT filename FROM public.schema_migrations`);
+    // Compare as sets sorted in JS: SQL ORDER BY follows the DB collation, which differs by environment.
+    expect(recorded.rows.map((r) => r.filename).sort()).toEqual(files.filter((f) => f <= through));
 
     const applied = run("nycefm_mig_runner");
     expect(applied.status, applied.stderr).toBe(0);
