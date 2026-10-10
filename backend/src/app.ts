@@ -21,7 +21,6 @@ import { streamRouter } from "./routes/stream.js";
 import { audienceRouter } from "./routes/audience.js";
 import { aiRouter } from "./routes/ai.js";
 import { paymentsRouter, handleStripeWebhook } from "./routes/payments.js";
-import { ensureObjectStorage } from "./services/objectStorage.js";
 import { innhouseRouter } from "./routes/innhouse.js";
 import houseListenerRouter from "./routes/houseListener.js";
 
@@ -95,16 +94,10 @@ export async function createApp() {
 
   await ensureStorage();
   await ensureStreamStorage();
-  try {
-    await ensureObjectStorage();
-  } catch (err) {
-    // Non-fatal: the API (including /health/ready, which independently
-    // re-checks storage per request) should still come up even if object
-    // storage is degraded at boot. Background workers that depend on
-    // storage are separately gated by startWorkersSequenced() in
-    // server.ts and will simply stay off until this is resolved.
-    console.error("[startup] object storage check failed -- API is still starting, but storage-dependent workers will stay off:", err instanceof Error ? err.message : err);
-  }
+  // Object storage (Supabase bucket) is verified/provisioned exactly once at
+  // boot, by startWorkersSequenced() in server.ts. A failure there is
+  // non-fatal: the API still comes up (/health/ready re-checks storage per
+  // request) and storage-dependent workers simply stay off.
 
   // 404
   app.use((req, res) => {
