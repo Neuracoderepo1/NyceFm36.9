@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://nycefm36-9.onrender.com/api/:path*" }
+  ]
+}
