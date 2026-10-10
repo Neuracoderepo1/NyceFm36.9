@@ -4,12 +4,14 @@ import { stopMediaProcessor } from "./services/mediaProcessor.js";
 import { stopAiWorker } from "./services/aiWorker.js";
 import { startWorkersSequenced } from "./services/workerOrchestrator.js";
 import { pool } from "./db/pool.js";
+import { logDbRoleDiagnostic } from "./db/startupDiagnostic.js";
 import { closeRedisClient } from "./lib/redis.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 createApp()
   .then(async (app) => {
+    await logDbRoleDiagnostic(pool);
     const activation = await startWorkersSequenced();
     console.log("[startup] worker activation:", activation);
     const server = app.listen(PORT, () => {
