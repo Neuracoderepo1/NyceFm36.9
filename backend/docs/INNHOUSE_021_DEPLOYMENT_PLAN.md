@@ -1,5 +1,26 @@
 # Migration 021: data impact, deployment, recovery, owner bootstrap, blockers
 
+## STATUS UPDATE 2026-10-10: 021 is ALREADY APPLIED to production (verified read-only)
+
+This supersedes the "nothing is applied" language below. The owner confirmed they applied it.
+
+| Fact | Evidence |
+|---|---|
+| Applied | `supabase_migrations.schema_migrations` row `20261010142658 / 021_innhouse_canonical_reconciliation`, 2026-10-10 14:26 UTC, by the owner's account |
+| Same SQL as the repo | The recorded statement is this repo's `021_…sql` with comments stripped; statements and order identical (pre-flight block included) |
+| Applied through Supabase tooling, not `npm run migrate` | `public.schema_migrations` does **not** exist. **Deliberately not created**: the project's intended bookkeeping is undecided, and creating it only to satisfy the runner guard would be a schema change made for convenience |
+| Data unchanged | 1 house, 1 creator, 1 channel, 0 members, 0 users, 0 user_roles |
+| Post-021 live fingerprint | `policies` 107 `95fa0656…`, `functions` 15 `a1f0a49e…`, `rls` 38 `46f44791…`, `table_acl_innhouse` 5 `22cbe7fc…` all **identical** to the pre-021 baseline. `constraints` 174 `39d8533c…`, `indexes` 148 `808c791f…`, `columns` 314 `35e6b75d…` differ, as 021 intends |
+| 021 effects present | `uq_house_members_one_active_owner`, `creators_house_id_handle_key`, `house_members_role_check` (3 roles), `houses_house_type_check` incl. `station`, `channels_channel_type_check` incl. `radio` |
+
+Not established: a backup/PITR restore point was **not recorded before the apply** (checks 6 in section 2
+was not evidenced). Confirm in the Supabase dashboard that PITR/daily backups are enabled going forward.
+The pre-021 `columns` baseline in `tests/migration/production-fingerprint.json` can no longer be captured live.
+
+**Do not run `npm run migrate` or `--baseline-through` against production** until the bookkeeping decision is
+made. If the runner is adopted, the correct baseline is `--baseline-through 021_innhouse_canonical_reconciliation.sql`
+(not 017, which would re-run 021).
+
 **Nothing here is authorized yet.** Production execution requires separate, explicit approval
 after review of this plan and the security notes in `MIGRATION_RECONCILIATION.md`.
 
