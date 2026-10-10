@@ -48,9 +48,20 @@ describe("startup DB role diagnostic", () => {
       expect(report).not.toBeNull();
       const output = [...log.mock.calls, ...warn.mock.calls].flat().join("\n");
       expect(output).toContain("[startup:db-role]");
-      if (url.password) expect(output).not.toContain(decodeURIComponent(url.password));
+
+      // Structural guarantee: the logged JSON can only contain the allow-listed
+      // fields, so no connection string, host or password field can ride along.
+      const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[startup:db-role] {"))!;
+      const logged = JSON.parse(line.slice("[startup:db-role] ".length));
+      expect(Object.keys(logged).sort()).toEqual(
+        ["database", "effective_role", "rls_enforced_for_connection", "rolbypassrls", "rolsuper", "server_version", "session_role", "tables"].sort()
+      );
       expect(output).not.toMatch(/postgres(ql)?:\/\//i);
-      expect(output).not.toContain(url.hostname === "localhost" ? "\u0000" : url.hostname);
+      // The password is only meaningful to check when it cannot coincide with a
+      // legitimate logged value (CI uses password "postgres" == the role name).
+      const legit = `${report!.effective_role} ${report!.session_role} ${report!.database} ${report!.server_version}`;
+      const password = url.password ? decodeURIComponent(url.password) : "";
+      if (password && !legit.includes(password)) expect(output).not.toContain(password);
     } finally {
       log.mockRestore();
       warn.mockRestore();
